@@ -1,19 +1,20 @@
-import { createNotionPage, NotionError } from "./notion";
-import { parseTeamsMessage } from "./parse";
-import { errorReply, methodNotAllowed, pendingReply, successReply, unauthorized } from "./reply";
-import type { Env, Issue, TeamsPayload } from "./types";
-import { verifyTeamsHmac } from "./verify";
+import { isAuthorized } from "./auth";
+import { BODY_MAX, validateIssue } from "./issue";
+import { createNotionPage, NotionError, notionErrorMessage } from "./notion";
+import { parsePastedText } from "./parse";
+import { json, jsonError, methodNotAllowed } from "./response";
+import type { Env } from "./types";
 
-// Teams는 5초 안에 응답을 받아야 하므로 Notion 호출은 4초까지만 기다린다.
-const NOTION_TIMEOUT_MS = 4000;
-const TIMEOUT = Symbol("timeout");
+const REQUEST_MAX = 1_000_000;
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | typeof TIMEOUT> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<typeof TIMEOUT>((resolve) => {
-    timer = setTimeout(() => resolve(TIMEOUT), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+async function readJson(request: Request): Promise<unknown> {
+  const raw = await request.text();
+  if (raw.length > REQUEST_MAX) return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
 }
 
 function logError(context: string, error: unknown): void {
@@ -24,47 +25,42 @@ function logError(context: string, error: unknown): void {
   }
 }
 
+async function handlePreview(request: Request): Promise<Response> {
+  const data = await readJson(request);
+  const text = (data as { text?: unknown } | undefined)?.text;
+  if (typeof text !== "string" || text.trim() === "") return jsonError(400, "붙여넣은 내용이 없습니다.");
+  if (text.length > BODY_MAX) return jsonError(400, "내용이 너무 깁니다.");
+  return json({ issue: parsePastedText(text) });
+}
+
+async function handleCreate(request: Request, env: Env): Promise<Response> {
+  const result = validateIssue(await readJson(request));
+  if (!result.ok) return jsonError(400, result.error);
+
+  try {
+    const url = await createNotionPage(result.issue, env);
+    return json({ url }, 201);
+  } catch (error) {
+    logError("Notion 등록 실패", error);
+    return jsonError(502, notionErrorMessage(error));
+  }
+}
+
+const API_ROUTES: Record<string, (request: Request, env: Env) => Promise<Response>> = {
+  "/api/preview": handlePreview,
+  "/api/issues": handleCreate,
+};
+
 export default {
-  async fetch(request, env, ctx): Promise<Response> {
-    if (request.method !== "POST") return methodNotAllowed();
+  async fetch(request, env): Promise<Response> {
+    const { pathname } = new URL(request.url);
 
-    // body는 서명 검증과 파싱에 같은 문자열을 쓰도록 한 번만 읽는다.
-    const raw = await request.text();
-    try {
-      if (!(await verifyTeamsHmac(raw, request.headers.get("Authorization"), env.TEAMS_HMAC_SECRET))) {
-        return unauthorized();
-      }
-    } catch (error) {
-      logError("HMAC 검증 오류 (TEAMS_HMAC_SECRET 설정 확인)", error);
-      return unauthorized();
+    const handler = API_ROUTES[pathname];
+    if (!handler) return jsonError(404, "Not Found");
+    if (request.method !== "POST") return methodNotAllowed("POST");
+    if (!(await isAuthorized(request.headers.get("Authorization"), env.FORM_PASSWORD))) {
+      return jsonError(401, "비밀번호가 올바르지 않습니다.");
     }
-
-    if (env.DEBUG === "true") console.log("[DEBUG] Teams payload:", raw);
-
-    let issue: Issue;
-    try {
-      issue = parseTeamsMessage(JSON.parse(raw) as TeamsPayload);
-    } catch (error) {
-      logError("payload 파싱 실패", error);
-      return errorReply();
-    }
-
-    const task = createNotionPage(issue, env);
-    try {
-      const result = await withTimeout(task, NOTION_TIMEOUT_MS);
-      if (result === TIMEOUT) {
-        ctx.waitUntil(
-          task.then(
-            (url) => console.log(`지연 등록 완료: ${url}`),
-            (error) => logError("지연 등록 실패", error),
-          ),
-        );
-        return pendingReply();
-      }
-      return successReply(issue.title, result);
-    } catch (error) {
-      logError("Notion 등록 실패", error);
-      return errorReply();
-    }
+    return handler(request, env);
   },
 } satisfies ExportedHandler<Env>;

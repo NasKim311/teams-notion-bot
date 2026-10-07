@@ -1,21 +1,17 @@
-import type { Issue, IssueType, TeamsPayload } from "./types";
+import type { Issue, IssueType } from "./types";
+
+// 붙여넣은 Teams 대화 텍스트 → Issue 초안.
+// 추천 양식(필드 줄)이 있으면 우선 사용하고, 없으면 Teams 복사 형식에서 추정한다.
+//
+//   [버그] 첫 줄은 제목
+//   작성자: 홍길동
+//   링크: https://teams.microsoft.com/l/message/...
+//   본문...
 
 const TITLE_MAX = 50;
-const UNTITLED = "(제목 없음)";
-const UNKNOWN_AUTHOR = "알 수 없음";
-
-const MENTION = /<at\b[^>]*>[\s\S]*?<\/at>/gi;
-const LINE_BREAK_TAG = /<br\s*\/?>|<\/(?:p|div|li|h[1-6])>/gi;
-const ANY_TAG = /<[^>]*>/g;
-const ENTITY = /&(#x[0-9a-f]+|#\d+|[a-z]+);/gi;
-const NAMED_ENTITIES: Record<string, string> = {
-  nbsp: " ",
-  amp: "&",
-  lt: "<",
-  gt: ">",
-  quot: '"',
-  apos: "'",
-};
+const NAME_MAX = 40;
+export const UNTITLED = "(제목 없음)";
+export const UNKNOWN_AUTHOR = "알 수 없음";
 
 // [운영]은 키워드 없이 태그로만 분류한다.
 const TYPE_TAG = /\[(버그|개선|운영)\]/;
@@ -23,29 +19,26 @@ const TYPE_TAG_ALL = /\[(?:버그|개선|운영)\]/g;
 const BUG_KEYWORDS = /버그|에러|안됨/;
 const IMPROVEMENT_KEYWORDS = /개선|제안/;
 
-const CONVERSATION_ID = /^(19:[^;]+)(?:;messageid=(\d+))?$/;
-const MESSAGE_ID = /^\d+$/;
+const FIELD_LINE = /^(제목|작성자|원문 링크|원문|링크)\s*[:：]\s*(.*)$/;
+const TEAMS_LINK = /https:\/\/teams\.(?:microsoft\.com|cloud\.microsoft)\/l\/message\/[^\s<>"'\])]+/;
+const ANY_LINK = /https?:\/\/[^\s<>"'\])]+/;
 
-function decodeEntities(text: string): string {
-  return text.replace(ENTITY, (whole, name: string) => {
-    if (name.startsWith("#")) {
-      const hex = name[1] === "x" || name[1] === "X";
-      const code = hex ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
-      return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
-    }
-    return NAMED_ENTITIES[name.toLowerCase()] ?? whole;
-  });
-}
+// Teams 복사 시 붙는 머리글: "홍길동 오후 4:30", "홍길동, 2026-10-07 오후 4:30", "[오후 4:30] 홍길동"
+const TIME = String.raw`(?:(?:오전|오후)\s*\d{1,2}:\d{2}|\d{1,2}:\d{2}(?:\s*[AaPp][Mm])?)`;
+const DATE = String.raw`(?:\d{4}[-./]\s?\d{1,2}[-./]\s?\d{1,2}\.?|\d{1,2}[/.-]\d{1,2}|\d{1,2}월\s*\d{1,2}일|어제|오늘)`;
+const STAMP = String.raw`(?:(?:${DATE}\s*)?${TIME}|${DATE})`;
+// 한 줄 머리글은 시간이 있어야 인정한다 ("로그인 오류 2.1" 같은 제목을 작성자로 오인하지 않도록).
+const TIMED_STAMP = String.raw`(?:${DATE}\s*)?${TIME}`;
+const STAMP_ONLY = new RegExp(String.raw`^\[?${STAMP}\]?$`);
+const NAME_THEN_STAMP = new RegExp(String.raw`^(.+?)[\s,]+\[?${TIMED_STAMP}\]?$`);
+const STAMP_THEN_NAME = new RegExp(String.raw`^\[${TIMED_STAMP}\]\s*(.+)$`);
 
-/** 멘션·HTML 태그를 제거하고 엔티티를 디코딩한 평문을 만든다. */
-export function cleanText(html: string): string {
-  const text = decodeEntities(
-    html.replace(MENTION, "").replace(LINE_BREAK_TAG, "\n").replace(ANY_TAG, ""),
-  );
+/** 줄바꿈 통일, 줄 끝 공백 제거, 연속 빈 줄 축소. 공백류(NBSP 등)는 일반 공백으로. */
+export function normalizeText(text: string): string {
   return text
     .replace(/\r\n?/g, "\n")
     .split("\n")
-    .map((line) => line.replace(/[ \t\u00a0]+/g, " ").trim())
+    .map((line) => line.replace(/[^\S\n]/g, " ").trimEnd())
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -70,34 +63,72 @@ export function makeTitle(text: string): string {
   return chars.length > TITLE_MAX ? chars.slice(0, TITLE_MAX - 1).join("") + "…" : title;
 }
 
-/** 채널 메시지 딥링크를 만든다. 필요한 값이 없으면 null. */
-export function buildMessageLink(payload: TeamsPayload): string | null {
-  const conversationId = payload.conversation?.id;
-  const messageId = payload.id;
-  if (typeof conversationId !== "string" || typeof messageId !== "string") return null;
-  if (!MESSAGE_ID.test(messageId)) return null;
-
-  const match = conversationId.match(CONVERSATION_ID);
-  const channelId = match?.[1];
-  if (!match || !channelId) return null;
-
-  const params = new URLSearchParams();
-  const tenantId = payload.conversation?.tenantId ?? payload.channelData?.tenant?.id;
-  if (typeof tenantId === "string" && tenantId !== "") params.set("tenantId", tenantId);
-  params.set("parentMessageId", match[2] ?? messageId);
-
-  return `https://teams.microsoft.com/l/message/${encodeURIComponent(channelId)}/${messageId}?${params}`;
+function isLikelyName(text: string): boolean {
+  const name = text.trim();
+  return (
+    name !== "" &&
+    Array.from(name).length <= NAME_MAX &&
+    !ANY_LINK.test(name) &&
+    !TYPE_TAG.test(name) &&
+    !/[.?!:]$/.test(name)
+  );
 }
 
-export function parseTeamsMessage(payload: TeamsPayload): Issue {
-  const body = cleanText(typeof payload.text === "string" ? payload.text : "");
-  const name = payload.from?.name;
+/** 앞쪽 줄이 Teams 머리글이면 작성자 이름과 머리글이 차지한 줄 수를 돌려준다. */
+export function detectHeader(lines: string[]): { author: string; lineCount: number } | null {
+  const first = lines[0]?.trim() ?? "";
+  if (first === "") return null;
+
+  const second = lines[1]?.trim() ?? "";
+  if (isLikelyName(first) && STAMP_ONLY.test(second)) return { author: first, lineCount: 2 };
+
+  const name = first.match(STAMP_THEN_NAME)?.[1] ?? first.match(NAME_THEN_STAMP)?.[1];
+  if (name && isLikelyName(name)) return { author: name.trim(), lineCount: 1 };
+  return null;
+}
+
+export function parsePastedText(raw: string): Issue {
+  const text = normalizeText(raw);
+
+  let title: string | undefined;
+  let author: string | undefined;
+  let sourceUrl: string | undefined;
+  const bodyLines: string[] = [];
+
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    const field = trimmed.match(FIELD_LINE);
+    if (field) {
+      const [, key, value = ""] = field;
+      if (key === "제목") title ??= value.trim() || undefined;
+      else if (key === "작성자") author ??= value.trim() || undefined;
+      else sourceUrl ??= value.match(TEAMS_LINK)?.[0] ?? value.match(ANY_LINK)?.[0];
+      continue;
+    }
+    // 링크만 있는 줄은 원문 링크로 쓰고 본문에서 뺀다.
+    const lone = trimmed.match(TEAMS_LINK);
+    if (lone && lone[0] === trimmed) {
+      sourceUrl ??= trimmed;
+      continue;
+    }
+    bodyLines.push(line);
+  }
+  sourceUrl ??= text.match(TEAMS_LINK)?.[0];
+
+  // 앞쪽 빈 줄을 건너뛰고 Teams 머리글을 찾는다.
+  const start = bodyLines.findIndex((line) => line.trim() !== "");
+  const contentLines = start === -1 ? [] : bodyLines.slice(start);
+  const header = detectHeader(contentLines);
+  author ??= header?.author;
+
+  const body = bodyLines.join("\n").trim();
+  const titleSource = title ?? contentLines.slice(header?.lineCount ?? 0).join("\n");
 
   return {
-    title: makeTitle(body),
-    type: classify(body),
+    title: makeTitle(titleSource),
+    type: classify(`${title ?? ""}\n${body}`),
     body,
-    author: typeof name === "string" && name.trim() !== "" ? name.trim() : UNKNOWN_AUTHOR,
-    sourceUrl: buildMessageLink(payload),
+    author: author ?? UNKNOWN_AUTHOR,
+    sourceUrl: sourceUrl ?? null,
   };
 }

@@ -92,3 +92,20 @@ export async function createNotionPage(
   if (typeof data.url !== "string") throw new NotionError(res.status, "missing_url");
   return data.url;
 }
+
+/** 사용자에게 보여줄 오류 메시지. 토큰 등 비밀값은 포함하지 않는다. */
+export function notionErrorMessage(error: unknown): string {
+  if (!(error instanceof NotionError)) return "Notion 등록 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.";
+  switch (error.code) {
+    case "unauthorized":
+      return "Notion 토큰이 올바르지 않아요. NOTION_TOKEN 설정을 확인해주세요.";
+    case "object_not_found":
+      return "Notion DB를 찾을 수 없어요. DB ID와 연결(teams-notion-bot) 권한을 확인해주세요.";
+    case "validation_error":
+      return "Notion DB 속성이 맞지 않아요. 제목/유형/작성자/원문 링크 속성을 확인해주세요.";
+    case "rate_limited":
+      return "Notion 요청이 너무 많아요. 잠시 후 다시 시도해주세요.";
+    default:
+      return `Notion 등록에 실패했어요. (status ${error.status}, ${error.code})`;
+  }
+}
