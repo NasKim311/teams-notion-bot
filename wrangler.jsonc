@@ -3,7 +3,11 @@
   "name": "teams-notion-bot",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-22",
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
   // 비밀값(FORM_PASSWORD, NOTION_TOKEN, NOTION_DATABASE_ID)은
   // 로컬은 .dev.vars, 배포는 `npx wrangler secret put <NAME>`으로 설정한다.
+  "vars": {
+    // "#11661", "일감번호 8795" → 이 주소 + 번호로 일감 링크를 만든다
+    "REDMINE_ISSUE_URL": "http://redmine.com.bo.shinsegae.com/issues/"
+  }
 }

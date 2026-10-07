@@ -11,6 +11,7 @@ export default defineConfig({
           FORM_PASSWORD: "test-password-한글",
           NOTION_TOKEN: "test-notion-token",
           NOTION_DATABASE_ID: "test-database-id",
+          REDMINE_ISSUE_URL: "http://redmine.example.com/issues/",
         },
       },
     }),

@@ -1,3 +1,4 @@
+import { extractDevInfo } from "./extract";
 import { isCodeLine, labelKey, matchSectionLabel, PRIMARY_LABELS } from "./sections";
 import type { Issue, IssueType } from "./types";
 
@@ -202,7 +203,12 @@ export function makeIssueTitle(lines: string[]): string {
   return makeTitle(summary || base);
 }
 
-export function parsePastedText(raw: string): Issue {
+export interface ParseOptions {
+  /** Redmine 일감 주소 접두어 */
+  redmineIssueUrl?: string;
+}
+
+export function parsePastedText(raw: string, options: ParseOptions = {}): Issue {
   const text = normalizeText(raw);
 
   let title: string | undefined;
@@ -240,5 +246,6 @@ export function parsePastedText(raw: string): Issue {
     body,
     author: author ?? UNKNOWN_AUTHOR,
     sourceUrl: sourceUrl ?? null,
+    ...extractDevInfo(`${title ?? ""}\n${body}`, options.redmineIssueUrl),
   };
 }

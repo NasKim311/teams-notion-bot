@@ -23,16 +23,35 @@ function plainText(content: string) {
   return [{ type: "text", text: { content: chunkText(content)[0] ?? "" } }];
 }
 
+/** Issue → Notion DB 속성. DB 컬럼 이름을 바꾸면 여기도 함께 바꾼다. */
+export function buildProperties(issue: Issue) {
+  return {
+    제목: { title: plainText(issue.title) },
+    유형: { select: { name: issue.type } },
+    작성자: { rich_text: plainText(issue.author) },
+    "원문 링크": { url: issue.sourceUrl },
+    일감: { url: issue.workItemUrl },
+    MR: { url: issue.mrUrl },
+    브랜치: { rich_text: issue.branch ? plainText(issue.branch) : [] },
+    "관련 파일": { rich_text: issue.files ? plainText(issue.files) : [] },
+    영역: { multi_select: issue.areas.map((name) => ({ name })) },
+  };
+}
+
+/** 봇이 채우는 DB 컬럼 정의 (DB에 컬럼을 추가할 때 사용). */
+export const DEV_INFO_SCHEMA = {
+  일감: { url: {} },
+  MR: { url: {} },
+  브랜치: { rich_text: {} },
+  "관련 파일": { rich_text: {} },
+  영역: { multi_select: { options: [] } },
+};
+
 /** POST /v1/pages 요청 바디를 만든다 (본문 블록은 최대 100개, 나머지는 따로 이어 붙인다). */
 export function buildPageRequest(issue: Issue, databaseId: string, blocks: NotionBlock[] = toBlocks(issue.body)) {
   return {
     parent: { database_id: databaseId },
-    properties: {
-      제목: { title: plainText(issue.title) },
-      유형: { select: { name: issue.type } },
-      작성자: { rich_text: plainText(issue.author) },
-      "원문 링크": { url: issue.sourceUrl },
-    },
+    properties: buildProperties(issue),
     children: blocks.slice(0, MAX_CHILDREN),
   };
 }

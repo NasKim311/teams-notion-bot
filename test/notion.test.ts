@@ -8,6 +8,11 @@ const issue: Issue = {
   body: "[버그] 로그인 버튼 무반응\n재현 방법",
   author: "김개발",
   sourceUrl: "https://teams.microsoft.com/l/message/19%3Aabc%40thread.tacv2/1?parentMessageId=1",
+  workItemUrl: null,
+  mrUrl: null,
+  branch: "",
+  files: "",
+  areas: [],
 };
 
 const env = { NOTION_TOKEN: "secret_token_value", NOTION_DATABASE_ID: "db-123" };
@@ -21,6 +26,11 @@ describe("buildPageRequest", () => {
         유형: { select: { name: "버그" } },
         작성자: { rich_text: [{ type: "text", text: { content: "김개발" } }] },
         "원문 링크": { url: issue.sourceUrl },
+        일감: { url: null },
+        MR: { url: null },
+        브랜치: { rich_text: [] },
+        "관련 파일": { rich_text: [] },
+        영역: { multi_select: [] },
       },
       children: [
         {
@@ -29,6 +39,27 @@ describe("buildPageRequest", () => {
           paragraph: { rich_text: [{ type: "text", text: { content: issue.body } }] },
         },
       ],
+    });
+  });
+
+  it("개발 정보 속성 매핑", () => {
+    const props = buildPageRequest(
+      {
+        ...issue,
+        workItemUrl: "http://redmine.example.com/issues/1",
+        mrUrl: "http://gitlab.example.com/a/-/merge_requests/2",
+        branch: "feature/x",
+        files: "src/A.tsx:1, src/B.tsx",
+        areas: ["fit", "evt"],
+      },
+      "db",
+    ).properties;
+    expect(props).toMatchObject({
+      일감: { url: "http://redmine.example.com/issues/1" },
+      MR: { url: "http://gitlab.example.com/a/-/merge_requests/2" },
+      브랜치: { rich_text: [{ text: { content: "feature/x" } }] },
+      "관련 파일": { rich_text: [{ text: { content: "src/A.tsx:1, src/B.tsx" } }] },
+      영역: { multi_select: [{ name: "fit" }, { name: "evt" }] },
     });
   });
 

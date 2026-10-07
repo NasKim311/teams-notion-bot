@@ -71,7 +71,8 @@ export function renderPage(nonce: string): string {
   #paste { min-height: 220px; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
   .grid { display: grid; grid-template-columns: 1fr 140px; gap: 0 12px; }
-  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+  @media (max-width: 560px) { .grid, .grid2 { grid-template-columns: 1fr; } }
   button { padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--card);
     color: var(--text); font: inherit; cursor: pointer; }
   button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; }
@@ -126,6 +127,14 @@ export function renderPage(nonce: string): string {
     <input id="author" maxlength="100">
     <label for="sourceUrl">원문 링크</label>
     <input id="sourceUrl" type="url" placeholder="https://teams.microsoft.com/l/message/...">
+    <div class="grid2">
+      <div><label for="workItemUrl">일감</label><input id="workItemUrl" type="url" placeholder="Redmine 일감 링크"></div>
+      <div><label for="mrUrl">MR</label><input id="mrUrl" type="url" placeholder="GitLab MR 링크"></div>
+      <div><label for="branch">브랜치</label><input id="branch" maxlength="2000"></div>
+      <div><label for="areas">영역</label><input id="areas" placeholder="쉼표로 구분 (예: fit, evt)"></div>
+    </div>
+    <label for="files">관련 파일</label>
+    <input id="files" maxlength="2000" placeholder="쉼표로 구분 (예: src/views/fit/pages/FitDetail.tsx:75)">
     <label for="body">본문</label>
     <textarea id="body" rows="10"></textarea>
     <div class="row">
@@ -142,7 +151,13 @@ export function renderPage(nonce: string): string {
 (function () {
   var KEY = "issueFormPassword";
   var $ = function (id) { return document.getElementById(id); };
-  var fields = ["title", "type", "author", "sourceUrl", "body"];
+  var fields = ["title", "type", "author", "sourceUrl", "workItemUrl", "mrUrl", "branch", "files", "areas", "body"];
+
+  function fieldValue(issue, name) {
+    var value = issue[name];
+    if (Array.isArray(value)) return value.join(", ");
+    return value || "";
+  }
   var busy = false;
 
   function storage(action, value) {
@@ -200,7 +215,7 @@ export function renderPage(nonce: string): string {
     if (!text.trim()) { showStatus("error", "붙여넣은 내용이 없습니다."); return; }
     setBusy(true);
     api("/api/preview", { text: text }).then(function (data) {
-      fields.forEach(function (name) { $(name).value = data.issue[name] || ""; });
+      fields.forEach(function (name) { $(name).value = fieldValue(data.issue, name); });
       hideStatus();
       $("reviewSection").hidden = false;
       $("title").focus();

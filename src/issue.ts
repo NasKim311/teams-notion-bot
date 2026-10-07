@@ -6,17 +6,22 @@ import { ISSUE_TYPES, type Issue, type IssueType } from "./types";
 const TITLE_MAX = 200;
 const AUTHOR_MAX = 100;
 const URL_MAX = 2000;
-export const BODY_MAX = 200_000; // Notion 요청당 100블록 × 2000자
+const TEXT_FIELD_MAX = 2000;
+const AREA_MAX = 50;
+const AREAS_MAX = 10;
+export const BODY_MAX = 200_000;
 
-export type ValidationResult = { ok: true; issue: Issue } | { ok: false; error: string };
+export type ValidationResult<T> = { ok: true; value: T } | { ok: false; error: string };
 
 const length = (text: string) => Array.from(text).length;
+const fail = (error: string) => ({ ok: false as const, error });
 
 function isIssueType(value: unknown): value is IssueType {
   return typeof value === "string" && (ISSUE_TYPES as readonly string[]).includes(value);
 }
 
-function normalizeUrl(value: unknown): string | null | undefined {
+/** 빈 값 → null, http(s) URL → 문자열, 그 외 → undefined(오류) */
+export function normalizeUrl(value: unknown): string | null | undefined {
   if (value === null || value === undefined) return null;
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
@@ -30,27 +35,64 @@ function normalizeUrl(value: unknown): string | null | undefined {
   }
 }
 
-export function validateIssue(input: unknown): ValidationResult {
-  if (typeof input !== "object" || input === null) return { ok: false, error: "요청 형식이 올바르지 않습니다." };
+function optionalText(value: unknown): string | undefined {
+  if (value === null || value === undefined) return "";
+  if (typeof value !== "string") return undefined;
+  const text = value.trim();
+  return length(text) > TEXT_FIELD_MAX ? undefined : text;
+}
+
+function normalizeAreas(value: unknown): string[] | undefined {
+  const raw = typeof value === "string" ? value.split(",") : value ?? [];
+  if (!Array.isArray(raw)) return undefined;
+  const areas = [...new Set(raw.map((area) => (typeof area === "string" ? area.trim() : "")).filter(Boolean))];
+  if (areas.length > AREAS_MAX || areas.some((area) => length(area) > AREA_MAX || area.includes(","))) return undefined;
+  return areas;
+}
+
+export function validateIssue(input: unknown): ValidationResult<Issue> {
+  if (typeof input !== "object" || input === null) return fail("요청 형식이 올바르지 않습니다.");
   const data = input as Record<string, unknown>;
 
   const title = typeof data.title === "string" ? data.title.replace(/\s+/g, " ").trim() : "";
-  if (title === "") return { ok: false, error: "제목을 입력해주세요." };
-  if (length(title) > TITLE_MAX) return { ok: false, error: `제목은 ${TITLE_MAX}자 이하로 입력해주세요.` };
+  if (title === "") return fail("제목을 입력해주세요.");
+  if (length(title) > TITLE_MAX) return fail(`제목은 ${TITLE_MAX}자 이하로 입력해주세요.`);
 
-  if (!isIssueType(data.type)) return { ok: false, error: "유형이 올바르지 않습니다." };
+  if (!isIssueType(data.type)) return fail("유형이 올바르지 않습니다.");
 
   const author = typeof data.author === "string" ? data.author.trim() : "";
-  if (length(author) > AUTHOR_MAX) return { ok: false, error: `작성자는 ${AUTHOR_MAX}자 이하로 입력해주세요.` };
+  if (length(author) > AUTHOR_MAX) return fail(`작성자는 ${AUTHOR_MAX}자 이하로 입력해주세요.`);
 
   const sourceUrl = normalizeUrl(data.sourceUrl);
-  if (sourceUrl === undefined) return { ok: false, error: "원문 링크는 http(s) 주소여야 합니다." };
+  if (sourceUrl === undefined) return fail("원문 링크는 http(s) 주소여야 합니다.");
+  const workItemUrl = normalizeUrl(data.workItemUrl);
+  if (workItemUrl === undefined) return fail("일감은 http(s) 주소여야 합니다.");
+  const mrUrl = normalizeUrl(data.mrUrl);
+  if (mrUrl === undefined) return fail("MR은 http(s) 주소여야 합니다.");
+
+  const branch = optionalText(data.branch);
+  if (branch === undefined) return fail("브랜치가 너무 깁니다.");
+  const files = optionalText(data.files);
+  if (files === undefined) return fail("관련 파일이 너무 깁니다.");
+  const areas = normalizeAreas(data.areas);
+  if (areas === undefined) return fail(`영역은 ${AREAS_MAX}개 이하, 각 ${AREA_MAX}자 이하로 입력해주세요.`);
 
   const body = typeof data.body === "string" ? data.body.trim() : "";
-  if (body.length > BODY_MAX) return { ok: false, error: "본문이 너무 깁니다." };
+  if (body.length > BODY_MAX) return fail("본문이 너무 깁니다.");
 
   return {
     ok: true,
-    issue: { title, type: data.type, author: author || UNKNOWN_AUTHOR, sourceUrl, body },
+    value: {
+      title,
+      type: data.type,
+      author: author || UNKNOWN_AUTHOR,
+      sourceUrl,
+      body,
+      workItemUrl,
+      mrUrl,
+      branch,
+      files,
+      areas,
+    },
   };
 }

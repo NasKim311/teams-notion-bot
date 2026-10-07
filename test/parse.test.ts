@@ -18,6 +18,11 @@ describe("parsePastedText — 추천 양식", () => {
       author: "홍길동(사원) - 회사",
       sourceUrl: LINK,
       body: "[버그] 로그인 버튼 무반응\n재현: 로그인 클릭\n기대: 이동",
+      workItemUrl: null,
+      mrUrl: null,
+      branch: "",
+      files: "",
+      areas: [],
     });
   });
 
@@ -103,7 +108,22 @@ describe("parsePastedText — Teams 복사 형식", () => {
       author: "알 수 없음",
       sourceUrl: null,
       body: "",
+      workItemUrl: null,
+      mrUrl: null,
+      branch: "",
+      files: "",
+      areas: [],
     });
+  });
+
+  it("개발 정보도 함께 추출 (일감 기본 주소는 옵션)", () => {
+    const text = "이슈 사항 : src/views/fit/pages/A.tsx 75번째 줄\n문제 설명\n처리 상황 : 일감번호 8795 처리 중 삽입된 코드";
+    expect(parsePastedText(text, { redmineIssueUrl: "http://redmine.example.com/issues" })).toMatchObject({
+      workItemUrl: "http://redmine.example.com/issues/8795",
+      files: "src/views/fit/pages/A.tsx:75",
+      areas: ["fit"],
+    });
+    expect(parsePastedText(text).workItemUrl).toBeNull();
   });
 });
 

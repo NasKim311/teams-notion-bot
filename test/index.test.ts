@@ -93,10 +93,23 @@ describe("라우팅/인증", () => {
 
 describe("POST /api/preview", () => {
   it("붙여넣은 텍스트를 Issue 초안으로 돌려준다", async () => {
-    const res = await call(post("/api/preview", { text: `[버그] 저장 실패\n작성자: 홍길동\n${LINK}\n상세` }));
+    const res = await call(
+      post("/api/preview", { text: `[버그] 저장 실패\n작성자: 홍길동\n${LINK}\n브랜치명: feature/fix-#11660\n상세` }),
+    );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
-      issue: { title: "저장 실패", type: "버그", author: "홍길동", sourceUrl: LINK, body: "[버그] 저장 실패\n상세" },
+      issue: {
+        title: "저장 실패",
+        type: "버그",
+        author: "홍길동",
+        sourceUrl: LINK,
+        body: "[버그] 저장 실패\n브랜치명: feature/fix-#11660\n상세",
+        workItemUrl: "http://redmine.example.com/issues/11660", // REDMINE_ISSUE_URL + 번호
+        mrUrl: null,
+        branch: "feature/fix-#11660",
+        files: "",
+        areas: [],
+      },
     });
     expect(fetchSpy).not.toHaveBeenCalled();
   });

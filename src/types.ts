@@ -2,6 +2,8 @@ export interface Env {
   FORM_PASSWORD: string;
   NOTION_TOKEN: string;
   NOTION_DATABASE_ID: string;
+  /** Redmine 일감 주소 접두어 (예: http://redmine.example.com/issues/). "#11661" → 일감 링크 변환에 사용 */
+  REDMINE_ISSUE_URL?: string;
 }
 
 export const ISSUE_TYPES = ["버그", "개선", "운영", "기타"] as const;
@@ -13,4 +15,14 @@ export interface Issue {
   body: string;
   author: string;
   sourceUrl: string | null;
+  /** 일감 (Redmine) */
+  workItemUrl: string | null;
+  /** MR (GitLab merge request) */
+  mrUrl: string | null;
+  /** 브랜치 (쉼표로 구분) */
+  branch: string;
+  /** 관련 파일 (쉼표로 구분, "경로:줄") */
+  files: string;
+  /** 영역 (모듈) */
+  areas: string[];
 }

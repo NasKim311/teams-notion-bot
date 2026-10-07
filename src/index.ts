@@ -26,12 +26,12 @@ function logError(context: string, error: unknown): void {
   }
 }
 
-async function handlePreview(request: Request): Promise<Response> {
+async function handlePreview(request: Request, env: Env): Promise<Response> {
   const data = await readJson(request);
   const text = (data as { text?: unknown } | undefined)?.text;
   if (typeof text !== "string" || text.trim() === "") return jsonError(400, "붙여넣은 내용이 없습니다.");
   if (text.length > BODY_MAX) return jsonError(400, "내용이 너무 깁니다.");
-  return json({ issue: parsePastedText(text) });
+  return json({ issue: parsePastedText(text, { redmineIssueUrl: env.REDMINE_ISSUE_URL }) });
 }
 
 async function handleCreate(request: Request, env: Env): Promise<Response> {
@@ -39,7 +39,7 @@ async function handleCreate(request: Request, env: Env): Promise<Response> {
   if (!result.ok) return jsonError(400, result.error);
 
   try {
-    const url = await createNotionPage(result.issue, env);
+    const url = await createNotionPage(result.value, env);
     return json({ url }, 201);
   } catch (error) {
     logError("Notion 등록 실패", error);
