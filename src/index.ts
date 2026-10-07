@@ -1,8 +1,9 @@
 import { isAuthorized } from "./auth";
 import { BODY_MAX, validateIssue } from "./issue";
 import { createNotionPage, NotionError, notionErrorMessage } from "./notion";
+import { contentSecurityPolicy, generateNonce, renderPage } from "./page";
 import { parsePastedText } from "./parse";
-import { json, jsonError, methodNotAllowed } from "./response";
+import { html, json, jsonError, methodNotAllowed } from "./response";
 import type { Env } from "./types";
 
 const REQUEST_MAX = 1_000_000;
@@ -54,6 +55,12 @@ const API_ROUTES: Record<string, (request: Request, env: Env) => Promise<Respons
 export default {
   async fetch(request, env): Promise<Response> {
     const { pathname } = new URL(request.url);
+
+    if (pathname === "/") {
+      if (request.method !== "GET" && request.method !== "HEAD") return methodNotAllowed("GET, HEAD");
+      const nonce = generateNonce();
+      return html(renderPage(nonce), contentSecurityPolicy(nonce));
+    }
 
     const handler = API_ROUTES[pathname];
     if (!handler) return jsonError(404, "Not Found");

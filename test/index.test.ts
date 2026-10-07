@@ -34,6 +34,36 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("GET / (입력 화면)", () => {
+  it("비밀번호 없이 HTML을 내려주고, CSP nonce가 스크립트와 일치", async () => {
+    const res = await call(request("/", { password: null }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toContain("text/html");
+    expect(res.headers.get("X-Frame-Options")).toBe("DENY");
+
+    const csp = res.headers.get("Content-Security-Policy")!;
+    const nonce = csp.match(/script-src 'nonce-([^']+)'/)?.[1];
+    expect(nonce).toBeTruthy();
+    expect(csp).toContain("default-src 'none'");
+
+    const page = await res.text();
+    expect(page).toContain(`<script nonce="${nonce}">`);
+    expect(page).toContain("Notion에 등록");
+    expect(page).not.toMatch(/style="/); // CSP가 인라인 style 속성을 막으므로 사용 금지
+    for (const type of ["버그", "개선", "운영", "기타"]) expect(page).toContain(`<option value="${type}">`);
+  });
+
+  it("요청마다 nonce가 다르다", async () => {
+    const a = (await call(request("/"))).headers.get("Content-Security-Policy");
+    const b = (await call(request("/"))).headers.get("Content-Security-Policy");
+    expect(a).not.toBe(b);
+  });
+
+  it("POST / 는 405", async () => {
+    expect((await call(request("/", { method: "POST" }))).status).toBe(405);
+  });
+});
+
 describe("라우팅/인증", () => {
   it("없는 경로는 404", async () => {
     expect((await call(request("/nope"))).status).toBe(404);
