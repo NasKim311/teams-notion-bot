@@ -17,8 +17,9 @@ const NAMED_ENTITIES: Record<string, string> = {
   apos: "'",
 };
 
-const TYPE_TAG = /\[(버그|개선)\]/;
-const TYPE_TAG_ALL = /\[(?:버그|개선)\]/g;
+// [운영]은 키워드 없이 태그로만 분류한다.
+const TYPE_TAG = /\[(버그|개선|운영)\]/;
+const TYPE_TAG_ALL = /\[(?:버그|개선|운영)\]/g;
 const BUG_KEYWORDS = /버그|에러|안됨/;
 const IMPROVEMENT_KEYWORDS = /개선|제안/;
 
@@ -44,16 +45,16 @@ export function cleanText(html: string): string {
   return text
     .replace(/\r\n?/g, "\n")
     .split("\n")
-    .map((line) => line.replace(/[ \t ]+/g, " ").trim())
+    .map((line) => line.replace(/[ \t\u00a0]+/g, " ").trim())
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
-/** [버그]/[개선] 태그 우선, 없으면 키워드로 유형을 분류한다. */
+/** [버그]/[개선]/[운영] 태그 우선, 없으면 키워드로 유형을 분류한다. */
 export function classify(text: string): IssueType {
   const tag = text.match(TYPE_TAG)?.[1];
-  if (tag === "버그" || tag === "개선") return tag;
+  if (tag === "버그" || tag === "개선" || tag === "운영") return tag;
   if (BUG_KEYWORDS.test(text)) return "버그";
   if (IMPROVEMENT_KEYWORDS.test(text)) return "개선";
   return "기타";

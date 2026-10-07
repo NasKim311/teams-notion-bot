@@ -5,7 +5,7 @@ export interface Env {
   DEBUG?: string;
 }
 
-export type IssueType = "버그" | "개선" | "기타";
+export type IssueType = "버그" | "개선" | "운영" | "기타";
 
 export interface Issue {
   title: string;
