@@ -1,0 +1,12 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "teams-notion-bot",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+  // 비밀값(TEAMS_HMAC_SECRET, NOTION_TOKEN, NOTION_DATABASE_ID)은
+  // 로컬은 .dev.vars, 배포는 `npx wrangler secret put <NAME>`으로 설정한다.
+  "vars": {
+    "DEBUG": "false"
+  }
+}
