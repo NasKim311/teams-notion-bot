@@ -1,0 +1,52 @@
+{
+  "type": "message",
+  "id": "1759817123456",
+  "timestamp": "2026-10-07T06:05:23.456Z",
+  "localTimestamp": "2026-10-07T15:05:23.456+09:00",
+  "serviceUrl": "https://smba.trafficmanager.net/kr/",
+  "channelId": "msteams",
+  "from": {
+    "id": "29:1XJKJMvc5GBtc2JwZq0oj8tHZmzrQgFmB39ATiQWA85gQtHieVkKilBZ9XHoq9j7Zaqt7CZ-NJWi7me2kHTL3Bw",
+    "name": "김개발",
+    "aadObjectId": "6c1c4b2e-7f0a-4a3b-9d8e-1f2a3b4c5d6e"
+  },
+  "conversation": {
+    "isGroup": true,
+    "id": "19:253b1f341670408fb6fcb9b1ce7d8e2d@thread.tacv2;messageid=1759817000000",
+    "name": null,
+    "conversationType": "channel",
+    "tenantId": "11111111-2222-3333-4444-555555555555"
+  },
+  "recipient": null,
+  "textFormat": "plain",
+  "attachmentLayout": null,
+  "membersAdded": [],
+  "membersRemoved": [],
+  "topicName": null,
+  "historyDisclosed": null,
+  "locale": "ko-KR",
+  "text": "<at>이슈봇</at>&nbsp;[버그] 로그인 버튼을 눌러도 반응이 없습니다<br>재현: Chrome에서 로그인 페이지 접속 후 버튼 클릭<br>기대: 대시보드로 이동 &amp; 세션 생성",
+  "summary": null,
+  "attachments": [
+    {
+      "contentType": "text/html",
+      "content": "<div><div><span itemscope=\"\" itemtype=\"http://schema.skype.com/Mention\" itemid=\"0\">이슈봇</span>&nbsp;[버그] 로그인 버튼을 눌러도 반응이 없습니다</div><div>재현: Chrome에서 로그인 페이지 접속 후 버튼 클릭</div><div>기대: 대시보드로 이동 &amp; 세션 생성</div></div>"
+    }
+  ],
+  "entities": [
+    {
+      "type": "clientInfo",
+      "locale": "ko-KR",
+      "country": "KR",
+      "platform": "Web",
+      "timezone": "Asia/Seoul"
+    }
+  ],
+  "channelData": {
+    "teamsChannelId": "19:253b1f341670408fb6fcb9b1ce7d8e2d@thread.tacv2",
+    "teamsTeamId": "19:712c61d0ef384e5fa681ba90ca943398@thread.tacv2",
+    "channel": { "id": "19:253b1f341670408fb6fcb9b1ce7d8e2d@thread.tacv2" },
+    "team": { "id": "19:712c61d0ef384e5fa681ba90ca943398@thread.tacv2" },
+    "tenant": { "id": "11111111-2222-3333-4444-555555555555" }
+  }
+}
