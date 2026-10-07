@@ -1,9 +1,11 @@
+import { chunkText, type NotionBlock, toBlocks } from "./blocks";
 import type { Env, Issue } from "./types";
 
-const NOTION_PAGES_URL = "https://api.notion.com/v1/pages";
+const NOTION_API = "https://api.notion.com/v1";
 const NOTION_VERSION = "2022-06-28";
-const TEXT_LIMIT = 2000; // rich_text 한 덩어리 최대 길이
 const MAX_CHILDREN = 100; // 요청당 children 블록 최대 개수
+
+type NotionEnv = Pick<Env, "NOTION_TOKEN" | "NOTION_DATABASE_ID">;
 
 export class NotionError extends Error {
   readonly status: number;
@@ -17,47 +19,21 @@ export class NotionError extends Error {
   }
 }
 
-/**
- * 텍스트를 최대 2000자 단위로 나눈다.
- * 코드포인트(서로게이트 쌍)를 쪼개지 않으면서 UTF-16 길이 기준으로도 한도를 넘지 않게 한다.
- */
-export function chunkText(text: string, size = TEXT_LIMIT): string[] {
-  const chunks: string[] = [];
-  let current = "";
-  for (const ch of text) {
-    if (current.length + ch.length > size) {
-      chunks.push(current);
-      current = "";
-    }
-    current += ch;
-  }
-  if (current !== "") chunks.push(current);
-  return chunks;
-}
-
-function richText(content: string) {
+function plainText(content: string) {
   return [{ type: "text", text: { content: chunkText(content)[0] ?? "" } }];
 }
 
-/** POST /v1/pages 요청 바디를 만든다. */
-export function buildPageRequest(issue: Issue, databaseId: string) {
-  const children = chunkText(issue.body)
-    .slice(0, MAX_CHILDREN)
-    .map((content) => ({
-      object: "block",
-      type: "paragraph",
-      paragraph: { rich_text: [{ type: "text", text: { content } }] },
-    }));
-
+/** POST /v1/pages 요청 바디를 만든다 (본문 블록은 최대 100개, 나머지는 따로 이어 붙인다). */
+export function buildPageRequest(issue: Issue, databaseId: string, blocks: NotionBlock[] = toBlocks(issue.body)) {
   return {
     parent: { database_id: databaseId },
     properties: {
-      제목: { title: richText(issue.title) },
+      제목: { title: plainText(issue.title) },
       유형: { select: { name: issue.type } },
-      작성자: { rich_text: richText(issue.author) },
+      작성자: { rich_text: plainText(issue.author) },
       "원문 링크": { url: issue.sourceUrl },
     },
-    children,
+    children: blocks.slice(0, MAX_CHILDREN),
   };
 }
 
@@ -70,26 +46,51 @@ async function readErrorCode(res: Response): Promise<string> {
   }
 }
 
-/** Notion DB에 페이지를 생성하고 페이지 URL을 반환한다. */
-export async function createNotionPage(
-  issue: Issue,
-  env: Pick<Env, "NOTION_TOKEN" | "NOTION_DATABASE_ID">,
-  fetchImpl: typeof fetch = fetch,
-): Promise<string> {
-  const res = await fetchImpl(NOTION_PAGES_URL, {
-    method: "POST",
+async function notionRequest<T>(
+  env: NotionEnv,
+  method: string,
+  path: string,
+  body: unknown,
+  fetchImpl: typeof fetch,
+): Promise<T> {
+  const res = await fetchImpl(`${NOTION_API}${path}`, {
+    method,
     headers: {
       Authorization: `Bearer ${env.NOTION_TOKEN}`,
       "Notion-Version": NOTION_VERSION,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(buildPageRequest(issue, env.NOTION_DATABASE_ID)),
+    body: JSON.stringify(body),
   });
-
   if (!res.ok) throw new NotionError(res.status, await readErrorCode(res));
+  return (await res.json()) as T;
+}
 
-  const data: { url?: unknown } = await res.json();
-  if (typeof data.url !== "string") throw new NotionError(res.status, "missing_url");
+/** 블록을 100개씩 나눠 페이지(또는 블록) 아래에 이어 붙인다. */
+export async function appendBlocks(
+  env: NotionEnv,
+  blockId: string,
+  blocks: NotionBlock[],
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
+  for (let i = 0; i < blocks.length; i += MAX_CHILDREN) {
+    await notionRequest(env, "PATCH", `/blocks/${blockId}/children`, { children: blocks.slice(i, i + MAX_CHILDREN) }, fetchImpl);
+  }
+}
+
+/** Notion DB에 페이지를 생성하고 페이지 URL을 반환한다. */
+export async function createNotionPage(issue: Issue, env: NotionEnv, fetchImpl: typeof fetch = fetch): Promise<string> {
+  const blocks = toBlocks(issue.body);
+  const data = await notionRequest<{ id?: unknown; url?: unknown }>(
+    env,
+    "POST",
+    "/pages",
+    buildPageRequest(issue, env.NOTION_DATABASE_ID, blocks),
+    fetchImpl,
+  );
+  if (typeof data.url !== "string" || typeof data.id !== "string") throw new NotionError(200, "missing_url");
+
+  if (blocks.length > MAX_CHILDREN) await appendBlocks(env, data.id, blocks.slice(MAX_CHILDREN), fetchImpl);
   return data.url;
 }
 
@@ -99,10 +100,12 @@ export function notionErrorMessage(error: unknown): string {
   switch (error.code) {
     case "unauthorized":
       return "Notion 토큰이 올바르지 않아요. NOTION_TOKEN 설정을 확인해주세요.";
+    case "restricted_resource":
+      return "Notion 연결 권한이 부족해요. 연결(teams-notion-bot)의 기능 설정을 확인해주세요.";
     case "object_not_found":
       return "Notion DB를 찾을 수 없어요. DB ID와 연결(teams-notion-bot) 권한을 확인해주세요.";
     case "validation_error":
-      return "Notion DB 속성이 맞지 않아요. 제목/유형/작성자/원문 링크 속성을 확인해주세요.";
+      return "Notion DB 속성이 맞지 않아요. DB 컬럼 이름과 유형을 확인해주세요.";
     case "rate_limited":
       return "Notion 요청이 너무 많아요. 잠시 후 다시 시도해주세요.";
     default:

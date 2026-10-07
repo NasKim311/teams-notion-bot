@@ -1,0 +1,91 @@
+// 팀에서 쓰는 이슈 양식의 섹션 라벨과 코드 줄을 판별하는 순수 함수.
+//   이슈 사항 : ...      (콜론 라벨 — 알려진 라벨만)
+//   [ 이슈 ] / [표시되는 내용]   (대괄호 라벨 — 어떤 이름이든)
+//   이슈 1) ...          (번호 라벨)
+
+const COLON_LABELS = [
+  "이슈 사항",
+  "이슈 현상",
+  "이슈 원인",
+  "이슈 발생 원인",
+  "이슈 해결",
+  "이슈",
+  "현상",
+  "원인",
+  "기대 동작",
+  "처리 상황",
+  "관련 추가 이슈",
+  "해결 방법",
+  "해결",
+  "경로",
+  "위치",
+  "문제점",
+  "개선",
+  "우려",
+  "재현",
+  "재현 방법",
+  "작업 브랜치명",
+  "브랜치명",
+  "Merge Request",
+  "참고",
+];
+const COLON_LABEL_KEYS = new Set(COLON_LABELS.map((label) => compact(label)));
+
+/** 제목/요약의 주 내용으로 쓸 섹션 */
+export const PRIMARY_LABELS = new Set(["이슈 사항", "이슈", "이슈 현상", "현상", "문제점"].map(compact));
+
+const TYPE_TAGS = new Set(["버그", "개선", "운영"]);
+const BRACKET_LINE = /^\[\s*([^\]]{1,20}?)\s*\]\s*(.*)$/;
+const COLON_LINE = /^([^:：]{1,15}?)\s*[:：]\s*(.*)$/;
+const NUMBERED_LINE = /^이슈\s*(\d{1,2})\s*\)(?:\s+(.*))?$/;
+
+export interface SectionLabel {
+  label: string;
+  rest: string;
+  /** "이슈 N)" 형태면 N */
+  number?: number;
+}
+
+function compact(text: string): string {
+  return text.replace(/\s+/g, "").toLowerCase();
+}
+
+export function labelKey(label: string): string {
+  return compact(label);
+}
+
+/** 줄이 섹션 라벨이면 라벨과 같은 줄의 나머지 내용을 돌려준다. */
+export function matchSectionLabel(line: string): SectionLabel | null {
+  const text = line.trim();
+
+  const numbered = text.match(NUMBERED_LINE);
+  if (numbered?.[1]) return { label: `이슈 ${numbered[1]}`, rest: numbered[2]?.trim() ?? "", number: Number(numbered[1]) };
+
+  const bracket = text.match(BRACKET_LINE);
+  if (bracket?.[1] && !TYPE_TAGS.has(bracket[1].trim())) {
+    return { label: bracket[1].trim(), rest: bracket[2]?.trim() ?? "" };
+  }
+
+  const colon = text.match(COLON_LINE);
+  if (colon?.[1] && COLON_LABEL_KEYS.has(compact(colon[1]))) {
+    return { label: colon[1].trim(), rest: colon[2]?.trim() ?? "" };
+  }
+  return null;
+}
+
+const CODE_START = /^(const|let|var|if|else|for|while|return|function|import|export|await|async|try|catch|switch|case|class|interface|type|new)\b/;
+const HANGUL = /[가-힣]/;
+
+/** 코드로 보이는 줄인지 (복사된 코드 조각을 코드 블록으로 묶기 위함). */
+export function isCodeLine(line: string): boolean {
+  const text = line.trim();
+  if (text === "") return false;
+  if (/^(\/\/|\/\*|\*\/)/.test(text)) return true;
+  if (CODE_START.test(text) && /[({=;]|=>/.test(text)) return true;
+  if (HANGUL.test(text)) return false;
+  if (/^[}\])]+[;,)]*$/.test(text)) return true; // 닫는 괄호만 있는 줄
+  if (/[{;]$/.test(text)) return true;
+  if (/^[\w$.]+\s*:\s*[{[]/.test(text)) return true; // 객체 속성: state: {
+  if (/^[\w$.[\]'"]+\s*=\s*.+;?$/.test(text) && /[(){}\[\];]/.test(text)) return true;
+  return false;
+}

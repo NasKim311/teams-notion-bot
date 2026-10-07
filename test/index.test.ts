@@ -114,7 +114,7 @@ describe("POST /api/issues", () => {
   const issue = { title: "저장 실패", type: "버그", author: "홍길동", sourceUrl: LINK, body: "상세" };
 
   it("Notion 페이지를 만들고 url을 돌려준다 (201)", async () => {
-    fetchSpy.mockResolvedValue(Response.json({ object: "page", url: NOTION_URL }));
+    fetchSpy.mockResolvedValue(Response.json({ object: "page", id: "page-1", url: NOTION_URL }));
 
     const res = await call(post("/api/issues", issue));
     expect(res.status).toBe(201);

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildPageRequest, chunkText, createNotionPage, NotionError } from "../src/notion";
+import { buildPageRequest, createNotionPage, NotionError, notionErrorMessage } from "../src/notion";
 import type { Issue } from "../src/types";
 
 const issue: Issue = {
@@ -11,25 +11,6 @@ const issue: Issue = {
 };
 
 const env = { NOTION_TOKEN: "secret_token_value", NOTION_DATABASE_ID: "db-123" };
-
-describe("chunkText", () => {
-  it("2000자 단위로 나눈다 (4500자 → 3개)", () => {
-    const chunks = chunkText("a".repeat(4500));
-    expect(chunks.map((c) => c.length)).toEqual([2000, 2000, 500]);
-  });
-
-  it("빈 문자열이면 빈 배열", () => {
-    expect(chunkText("")).toEqual([]);
-  });
-
-  it("서로게이트 쌍을 쪼개지 않는다", () => {
-    const chunks = chunkText("a" + "🐛".repeat(1000)); // UTF-16 길이 2001
-    expect(chunks).toHaveLength(2);
-    expect(chunks[0]).toBe("a" + "🐛".repeat(999));
-    expect(chunks[1]).toBe("🐛");
-    expect(chunks.join("")).toBe("a" + "🐛".repeat(1000));
-  });
-});
 
 describe("buildPageRequest", () => {
   it("DB 속성과 본문 블록을 매핑한다", () => {
@@ -51,26 +32,20 @@ describe("buildPageRequest", () => {
     });
   });
 
-  it("긴 본문은 2000자 단위 paragraph 블록으로 분할", () => {
-    const req = buildPageRequest({ ...issue, body: "가".repeat(4500) }, "db");
-    const contents = req.children.map((b) => b.paragraph.rich_text[0]!.text.content.length);
-    expect(contents).toEqual([2000, 2000, 500]);
-  });
-
-  it("블록은 최대 100개", () => {
-    const req = buildPageRequest({ ...issue, body: "a".repeat(2000 * 101) }, "db");
-    expect(req.children).toHaveLength(100);
-  });
-
   it("sourceUrl이 null이면 url도 null", () => {
     expect(buildPageRequest({ ...issue, sourceUrl: null }, "db").properties["원문 링크"]).toEqual({ url: null });
+  });
+
+  it("children은 최대 100개", () => {
+    const body = Array.from({ length: 150 }, (_, i) => `문단 ${i}`).join("\n\n");
+    expect(buildPageRequest({ ...issue, body }, "db").children).toHaveLength(100);
   });
 });
 
 describe("createNotionPage", () => {
   it("POST /v1/pages 호출 후 페이지 url 반환", async () => {
     const fetchMock = vi.fn<typeof fetch>(async () =>
-      Response.json({ object: "page", url: "https://www.notion.so/abc123" }),
+      Response.json({ object: "page", id: "page-1", url: "https://www.notion.so/abc123" }),
     );
 
     await expect(createNotionPage(issue, env, fetchMock)).resolves.toBe("https://www.notion.so/abc123");
@@ -82,6 +57,20 @@ describe("createNotionPage", () => {
     expect(headers.get("Authorization")).toBe("Bearer secret_token_value");
     expect(headers.get("Notion-Version")).toBe("2022-06-28");
     expect(JSON.parse(init?.body as string)).toEqual(buildPageRequest(issue, "db-123"));
+  });
+
+  it("블록이 100개를 넘으면 나머지를 이어 붙인다", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ id: "page-1", url: "https://www.notion.so/p" }));
+    const body = Array.from({ length: 230 }, (_, i) => `문단 ${i}`).join("\n\n");
+
+    await createNotionPage({ ...issue, body }, env, fetchMock);
+
+    expect(fetchMock).toHaveBeenCalledTimes(3); // 생성 + 100 + 30
+    const [url, init] = fetchMock.mock.calls[1]!;
+    expect(url).toBe("https://api.notion.com/v1/blocks/page-1/children");
+    expect(init?.method).toBe("PATCH");
+    expect(JSON.parse(init?.body as string).children).toHaveLength(100);
+    expect(JSON.parse(fetchMock.mock.calls[2]![1]?.body as string).children).toHaveLength(30);
   });
 
   it("오류 응답이면 status/code를 담은 NotionError (토큰 미포함)", async () => {
@@ -103,5 +92,22 @@ describe("createNotionPage", () => {
   it("응답에 url이 없으면 NotionError", async () => {
     const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ object: "page" }));
     await expect(createNotionPage(issue, env, fetchMock)).rejects.toMatchObject({ code: "missing_url" });
+  });
+});
+
+describe("notionErrorMessage", () => {
+  it.each([
+    ["unauthorized", "토큰"],
+    ["restricted_resource", "권한"],
+    ["object_not_found", "찾을 수 없어요"],
+    ["validation_error", "속성"],
+    ["rate_limited", "너무 많아요"],
+    ["conflict_error", "status 409"],
+  ])("%s", (code, text) => {
+    expect(notionErrorMessage(new NotionError(code === "conflict_error" ? 409 : 400, code))).toContain(text);
+  });
+
+  it("NotionError가 아니면 일반 안내", () => {
+    expect(notionErrorMessage(new Error("x"))).toContain("잠시 후 다시 시도");
   });
 });

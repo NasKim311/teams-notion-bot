@@ -1,69 +1,92 @@
 import { describe, expect, it } from "vitest";
-import { classify, detectHeader, makeTitle, normalizeText, parsePastedText } from "../src/parse";
+import { classify, makeIssueTitle, makeTitle, matchHeaderAt, normalizeText, parsePastedText, rewriteHeaders } from "../src/parse";
 
 const NBSP = String.fromCharCode(0xa0);
 const LINK =
   "https://teams.microsoft.com/l/message/19:194ff38d6827458bbbd60f9d1917f425@thread.v2/1791347527995?context=%7B%22contextType%22%3A%22chat%22%7D";
 
+const lines = (...rows: string[]) => rows;
+
 describe("parsePastedText — 추천 양식", () => {
   it("필드 줄로 작성자/링크를 채우고 본문에서는 뺀다", () => {
     const issue = parsePastedText(
-      ["[버그] 로그인 버튼 무반응", "작성자: 홍길동(사원) - 유젠", `링크: ${LINK}`, "재현: 로그인 클릭", "기대: 이동"].join("\n"),
+      ["[버그] 로그인 버튼 무반응", "작성자: 홍길동(사원) - 회사", `링크: ${LINK}`, "재현: 로그인 클릭", "기대: 이동"].join("\n"),
     );
     expect(issue).toEqual({
       title: "로그인 버튼 무반응",
       type: "버그",
-      author: "홍길동(사원) - 유젠",
+      author: "홍길동(사원) - 회사",
       sourceUrl: LINK,
       body: "[버그] 로그인 버튼 무반응\n재현: 로그인 클릭\n기대: 이동",
     });
   });
 
-  it("제목: 필드가 있으면 첫 줄 대신 사용하고 유형 분류에도 반영", () => {
+  it("제목: 필드가 있으면 그대로 쓰고 유형 분류에도 반영", () => {
     const issue = parsePastedText("제목: [운영] 관리자 권한 요청\n권한 부탁드립니다");
     expect(issue.title).toBe("관리자 권한 요청");
     expect(issue.type).toBe("운영");
     expect(issue.body).toBe("권한 부탁드립니다");
   });
 
-  it("전각 콜론, 원문/원문 링크 키도 인식", () => {
-    expect(parsePastedText(`작성자： 김개발\n원문 링크: ${LINK}\n내용`)).toMatchObject({
-      author: "김개발",
-      sourceUrl: LINK,
-    });
+  it("전각 콜론, 원문/원문 링크 키, 일반 http(s) 링크도 인식", () => {
+    expect(parsePastedText(`작성자： 김개발\n원문 링크: ${LINK}\n내용`)).toMatchObject({ author: "김개발", sourceUrl: LINK });
     expect(parsePastedText(`원문: ${LINK}\n내용`).sourceUrl).toBe(LINK);
-  });
-
-  it("링크 필드에 Teams가 아닌 http(s) 주소도 허용", () => {
     expect(parsePastedText("링크: https://example.com/a?b=1\n내용").sourceUrl).toBe("https://example.com/a?b=1");
   });
 });
 
-describe("parsePastedText — 양식 없이 붙여넣기", () => {
-  it("링크만 있는 줄은 원문 링크로 쓰고 본문에서 뺀다", () => {
-    const issue = parsePastedText(`화면이 깨져요\n${LINK}`);
-    expect(issue.sourceUrl).toBe(LINK);
-    expect(issue.body).toBe("화면이 깨져요");
+describe("parsePastedText — Teams 복사 형식", () => {
+  it("두 줄 머리글(이름 + 시간)에서 작성자를 뽑고 본문엔 한 줄로 남긴다", () => {
+    const issue = parsePastedText(
+      lines(
+        "홍길동(사원) - 회사",
+        "오후 4:30",
+        "편집됨",
+        "",
+        "이슈 사항 : src/views/shop/pages/ShopDetail.tsx 75번째 줄",
+        "로그인 토큰 조건문이 반대로 설정된 것으로 보임",
+        "",
+        "기대 동작 : 토큰이 없을 때 에러 Alert",
+      ).join("\n"),
+    );
+    expect(issue.author).toBe("홍길동(사원) - 회사");
+    expect(issue.title).toBe("ShopDetail.tsx: 로그인 토큰 조건문이 반대로 설정된 것으로 보임");
+    expect(issue.type).toBe("버그");
+    expect(issue.body.split("\n")[0]).toBe("— 홍길동(사원) - 회사 · 오후 4:30");
   });
 
-  it("문장 안의 Teams 링크도 원문 링크로 인식 (본문은 유지)", () => {
-    const issue = parsePastedText(`여기 참고 ${LINK} 확인 부탁`);
-    expect(issue.sourceUrl).toBe(LINK);
-    expect(issue.body).toContain(LINK);
+  it("시간 줄이 이름보다 먼저 와도 인식", () => {
+    expect(parsePastedText("오후 5:20\n김개발(사원) - 회사\n예약은 제가 확인할게요").author).toBe("김개발(사원) - 회사");
   });
 
-  it("Teams 머리글(이름 + 시간)에서 작성자를 추출하고 제목에서는 건너뛴다", () => {
-    const issue = parsePastedText("정주영(사원) - 유젠 오후 4:30\n이슈 사항 : FitDetail.tsx 75번째 줄\nssoToken 조건 반대");
-    expect(issue.author).toBe("정주영(사원) - 유젠");
-    expect(issue.title).toBe("이슈 사항 : FitDetail.tsx 75번째 줄");
-    expect(issue.body).toContain("정주영(사원) - 유젠 오후 4:30"); // 대화 맥락은 본문에 유지
+  it("전달된 메시지는 연달아 붙은 머리글 중 마지막(원작성자)을 작성자로", () => {
+    const issue = parsePastedText(
+      lines("박팀장(담당) - 회사", "어제 오전 8:43", "김개발(담당) - 회사", "2026-09-30 오후 1:25", "", "BO 쿠폰 화면 아이콘 없음").join("\n"),
+    );
+    expect(issue.author).toBe("김개발(담당) - 회사");
+    expect(issue.body).toBe(
+      "— 박팀장(담당) - 회사 · 어제 오전 8:43\n— 김개발(담당) - 회사 · 2026-09-30 오후 1:25\n\nBO 쿠폰 화면 아이콘 없음",
+    );
   });
 
-  it("작성자 필드가 머리글보다 우선", () => {
-    expect(parsePastedText("정주영 오후 4:30\n작성자: 김개발\n내용").author).toBe("김개발");
+  it("본문 중간의 다른 사람 머리글도 한 줄로 바꾸지만 작성자는 첫 머리글", () => {
+    const issue = parsePastedText(
+      lines("홍길동(사원) - 회사", "오후 1:32", "이슈 사항 : 정렬 UI 초기화", "김개발(사원) - 회사", "오후 1:57", "어떻게 파악하셨나요?").join("\n"),
+    );
+    expect(issue.author).toBe("홍길동(사원) - 회사");
+    expect(issue.body).toContain("— 김개발(사원) - 회사 · 오후 1:57");
   });
 
-  it("작성자를 알 수 없으면 기본값", () => {
+  it("링크만 있는 줄은 원문 링크로 쓰고 본문에서 뺀다 / 문장 속 링크는 본문 유지", () => {
+    const lone = parsePastedText(`화면이 깨져요\n${LINK}`);
+    expect(lone).toMatchObject({ sourceUrl: LINK, body: "화면이 깨져요" });
+    const inline = parsePastedText(`여기 참고 ${LINK} 확인 부탁`);
+    expect(inline.sourceUrl).toBe(LINK);
+    expect(inline.body).toContain(LINK);
+  });
+
+  it("작성자 필드가 머리글보다 우선, 아무것도 없으면 기본값", () => {
+    expect(parsePastedText("홍길동 오후 4:30\n작성자: 김개발\n내용").author).toBe("김개발");
     expect(parsePastedText("그냥 내용만 있어요").author).toBe("알 수 없음");
   });
 
@@ -84,30 +107,24 @@ describe("parsePastedText — 양식 없이 붙여넣기", () => {
   });
 });
 
-describe("detectHeader", () => {
+describe("matchHeaderAt", () => {
   it.each([
-    ["홍길동 오후 4:30", "홍길동"],
-    ["홍길동(사원) - 유젠, 2026-10-07 오후 4:30", "홍길동(사원) - 유젠"],
-    ["홍길동 2026. 10. 7. 오전 9:05", "홍길동"],
-    ["[오후 4:30] 홍길동", "홍길동"],
-    ["Hong Gildong 4:30 PM", "Hong Gildong"],
-    ["홍길동 어제 오후 2:10", "홍길동"],
-  ])("한 줄 머리글: %s", (line, author) => {
-    expect(detectHeader([line, "내용"])).toEqual({ author, lineCount: 1 });
+    ["홍길동 오후 4:30", "홍길동", "오후 4:30"],
+    ["홍길동(사원) - 회사, 2026-10-07 오후 4:30", "홍길동(사원) - 회사", "2026-10-07 오후 4:30"],
+    ["홍길동 2026. 10. 7. 오전 9:05", "홍길동", "2026. 10. 7. 오전 9:05"],
+    ["[오후 4:30] 홍길동", "홍길동", "오후 4:30"],
+    ["Hong Gildong 4:30 PM", "Hong Gildong", "4:30 PM"],
+    ["홍길동 어제 오후 2:10", "홍길동", "어제 오후 2:10"],
+  ])("한 줄 머리글: %s", (line, author, stamp) => {
+    expect(matchHeaderAt([line, "내용"], 0)).toEqual({ author, stamp, lineCount: 1 });
   });
 
-  it("이름 줄 + 시간/날짜 줄 (두 줄 머리글)", () => {
-    expect(detectHeader(["홍길동(사원) - 유젠", "오후 4:30", "내용"])).toEqual({
-      author: "홍길동(사원) - 유젠",
-      lineCount: 2,
+  it("두 줄 머리글 + 편집됨", () => {
+    expect(matchHeaderAt(["홍길동", "2026-10-07", "편집됨", "내용"], 0)).toEqual({
+      author: "홍길동",
+      stamp: "2026-10-07",
+      lineCount: 3,
     });
-    expect(detectHeader(["홍길동", "2026-10-07", "내용"])).toEqual({ author: "홍길동", lineCount: 2 });
-  });
-
-  it("버전 번호로 끝나는 제목을 작성자로 오인하지 않는다", () => {
-    const issue = parsePastedText("로그인 오류 2.1\n상세");
-    expect(issue.title).toBe("로그인 오류 2.1");
-    expect(issue.author).toBe("알 수 없음");
   });
 
   it.each([
@@ -119,43 +136,90 @@ describe("detectHeader", () => {
     ["로그인 오류 2.1"], // 날짜처럼 보이는 버전 번호
     ["홍길동 10/7"], // 한 줄 머리글은 시간이 필요
   ])("머리글 아님: %s", (line) => {
-    expect(detectHeader([line, "내용"])).toBeNull();
+    expect(matchHeaderAt([line, "내용"], 0)).toBeNull();
+  });
+
+  it("시간 줄 다음의 일반 문장은 이름으로 보지 않는다", () => {
+    expect(matchHeaderAt(["오후 5:20", "예약은 제가 전화해보고 말씀드릴게요"], 0)).toBeNull();
+  });
+
+  it("strict(본문 중간)에서는 표시 이름 형태만 인정", () => {
+    expect(matchHeaderAt(["홍길동", "오후 4:30"], 0, true)).toBeNull();
+    expect(matchHeaderAt(["홍길동(사원) - 회사", "오후 4:30"], 0, true)).toMatchObject({ author: "홍길동(사원) - 회사" });
+  });
+});
+
+describe("rewriteHeaders", () => {
+  it("맨 앞 머리글이 없으면 작성자 없음", () => {
+    expect(rewriteHeaders(["내용", "홍길동(사원) - 회사", "오후 1:00"])).toEqual({
+      lines: ["내용", "— 홍길동(사원) - 회사 · 오후 1:00"],
+      author: undefined,
+    });
+  });
+});
+
+describe("makeIssueTitle", () => {
+  it.each<[string, string[], string]>([
+    [
+      "이슈 사항 섹션 + 파일 경로 (다음 줄이 요약)",
+      ["이슈 사항 : src/views/a/pages/ListPage.tsx 75 번째 줄", "검색결과 총 갯수가 total 이 아닌 length 로 표시됨"],
+      "ListPage.tsx: 검색결과 총 갯수가 total 이 아닌 length 로 표시됨",
+    ],
+    [
+      "파일명 한 줄 + 현상 섹션",
+      ["view/evt/components/molecule/TabWrapper.tsx", "현상 : 탭 클릭 이동시 순서가 꼬이는 문제"],
+      "TabWrapper.tsx: 탭 클릭 이동시 순서가 꼬이는 문제",
+    ],
+    [
+      "파일명 + 줄 번호 + 코드는 건너뛰고 설명",
+      ["src/hooks/useBack.ts", "103~119 줄", "if (useFirst === undefined) {", "useFirst 값 분기가 중복됨"],
+      "useBack.ts: useFirst 값 분기가 중복됨",
+    ],
+    [
+      "경로 뒤 조사 제거",
+      ["src/views/brd/Map.tsx 의 PinchZoom 높이가 흔들림"],
+      "Map.tsx: PinchZoom 높이가 흔들림",
+    ],
+    ["대괄호 섹션", ["feature/some-branch", "", "[ 이슈 ]", "다국어 페이지 등급을 잘못 파악함"], "다국어 페이지 등급을 잘못 파악함"],
+    ["번호 섹션", ["이슈 1)", "BO 쿠폰 등록 화면 아이콘 없음"], "BO 쿠폰 등록 화면 아이콘 없음"],
+    ["머리글 줄은 무시", ["— 홍길동 · 오후 1:00", "그냥 첫 문장"], "그냥 첫 문장"],
+    ["=> 제안 줄은 요약에서 제외", ["이슈 사항 : Foo.tsx", "=> 이렇게 고치면 됨", "실제 문제 설명"], "Foo.tsx: 실제 문제 설명"],
+  ])("%s", (_label, input, expected) => {
+    expect(makeIssueTitle(input)).toBe(expected);
+  });
+
+  it("요약이 없으면 파일명, 둘 다 없으면 기본 제목", () => {
+    expect(makeIssueTitle(["src/a/OnlyFile.tsx"])).toBe("OnlyFile.tsx");
+    expect(makeIssueTitle([])).toBe("(제목 없음)");
   });
 });
 
 describe("classify", () => {
   it.each([
     ["[버그] 화면이 깨져요", "버그"],
-    ["[개선] 에러 메시지 문구 다듬기", "개선"], // 태그가 키워드보다 우선
-    ["[운영] 배포 후 에러 로그 확인 부탁", "운영"],
+    ["[개선] 에러 메시지 문구 다듬기", "개선"], // 태그가 신호보다 우선
     ["[개선] 정렬 옵션 [운영]", "개선"], // 먼저 나온 태그 기준
+    ["기대 동작 : 정상 표시", "버그"],
+    ["이슈 원인 : 상태 초기화", "버그"],
     ["저장이 안됨", "버그"],
-    ["검색 기능 제안", "개선"],
-    ["에러 안내 개선", "버그"], // 키워드끼리는 버그 우선
-    ["관리자 권한 요청드립니다", "기타"], // 운영은 태그로만 분류
+    ["현범님께 할당된 일감 공유드립니다", "운영"],
+    ["공통 컴포넌트로 빼면 더 나을 것 같습니다", "개선"],
+    ["가독성을 위해 리팩토링 제안", "개선"],
+    ["에러 안내 개선", "버그"], // 버그 > 개선
+    ["점심 메뉴 추천", "기타"],
   ] as const)("%s → %s", (text, expected) => {
     expect(classify(text)).toBe(expected);
   });
 });
 
-describe("makeTitle", () => {
-  it("첫 줄만 사용하고 유형 태그는 제거", () => {
-    expect(makeTitle("[버그] 로그인 실패\n상세 내용")).toBe("로그인 실패");
-  });
-
+describe("makeTitle / normalizeText", () => {
   it("50자 초과 시 49자 + … 로 자른다 (서로게이트 쌍 보존)", () => {
     expect(makeTitle("가".repeat(60))).toBe("가".repeat(49) + "…");
     expect(makeTitle("🐛".repeat(55))).toBe("🐛".repeat(49) + "…");
     expect(makeTitle("a".repeat(50))).toBe("a".repeat(50));
-  });
-
-  it("내용이 없으면 기본 제목", () => {
-    expect(makeTitle("")).toBe("(제목 없음)");
     expect(makeTitle("[버그]")).toBe("(제목 없음)");
   });
-});
 
-describe("normalizeText", () => {
   it("연속 빈 줄은 하나로", () => {
     expect(normalizeText("a\n\n\n\nb")).toBe("a\n\nb");
   });
