@@ -53,7 +53,10 @@ interface Lookup {
 }
 
 /** 이슈마다 같은 레드마인 일감의 기존 페이지를 찾는다. 실패해도 미리보기는 계속한다. */
-async function lookupExisting(issues: Issue[], env: Env): Promise<{ lookups: Lookup[]; statusOptions: string[]; lookupError?: string }> {
+async function lookupExisting(
+  issues: Issue[],
+  env: Env,
+): Promise<{ lookups: Lookup[]; statusOptions: string[]; lookupError?: string }> {
   const empty = { lookups: issues.map(() => ({ matches: [], suggestedStatus: null })), statusOptions: [] };
   if (!issues.some((issue) => issue.workItemUrl)) return empty;
 
@@ -102,11 +105,15 @@ async function handleCreate(request: Request, env: Env): Promise<Response> {
 }
 
 async function handleUpdate(request: Request, env: Env): Promise<Response> {
-  const data = (await readJson(request)) as { pageId?: unknown; issue?: unknown; status?: unknown; imageIds?: unknown } | undefined;
-  if (typeof data?.pageId !== "string" || !PAGE_ID.test(data.pageId)) return jsonError(400, "기존 이슈 정보가 올바르지 않습니다.");
+  const data = (await readJson(request)) as
+    | { pageId?: unknown; issue?: unknown; status?: unknown; imageIds?: unknown }
+    | undefined;
+  if (typeof data?.pageId !== "string" || !PAGE_ID.test(data.pageId))
+    return jsonError(400, "기존 이슈 정보가 올바르지 않습니다.");
 
   const status = data.status === null || data.status === undefined || data.status === "" ? null : data.status;
-  if (status !== null && (typeof status !== "string" || status.length > STATUS_MAX)) return jsonError(400, "상태 값이 올바르지 않습니다.");
+  if (status !== null && (typeof status !== "string" || status.length > STATUS_MAX))
+    return jsonError(400, "상태 값이 올바르지 않습니다.");
 
   const result = validateIssue(data.issue);
   if (!result.ok) return jsonError(400, result.error);

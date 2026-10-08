@@ -24,7 +24,7 @@ const VIEW_MODULE = /(?:^|\/)views?\/([a-z][\w-]{1,20})(?:\/|$)/i;
 const PLATFORM = /(?<![A-Za-z])(FO|BO)(?![A-Za-z])|(프론트\s*오피스)|(백\s*오피스)/;
 // "fit/fitBrandSearch": 페이지 이름이 모듈 이름으로 시작하는 경로
 const MODULE_PAGE = /(?:^|[\s(])\/?([a-z]{2,10})\/\1[A-Z]\w*/;
-const ROUTE_PAGE =/(?:^|\s)\/([a-z]{2,15})\/[\w/-]*\s*페이지/;
+const ROUTE_PAGE = /(?:^|\s)\/([a-z]{2,15})\/[\w/-]*\s*페이지/;
 
 const MAX_FILES = 10;
 const MAX_AREAS = 5;

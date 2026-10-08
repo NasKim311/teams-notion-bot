@@ -10,9 +10,12 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p scripts",
     "notion:schema": "tsx scripts/notion-schema.ts",
     "notion:retitle": "tsx scripts/retitle.ts",
-    "notion:restructure": "tsx scripts/restructure.ts"
+    "notion:restructure": "tsx scripts/restructure.ts",
+    "lint": "biome check .",
+    "format": "biome check --write ."
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "@cloudflare/vitest-pool-workers": "^0.22.0",
     "@cloudflare/workers-types": "^5.20261007.1",
     "@types/node": "^26.6.4",

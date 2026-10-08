@@ -68,7 +68,8 @@ export function classify(text: string): IssueType {
   return "기타";
 }
 
-const COMPLETE_SIGNALS = /수정하여\s*전달|수정\s*완료|해결\s*완료|처리\s*완료|배포\s*완료|머지\s*완료|merge_requests\/\d+|이슈\s*해결\s*[:：]/i;
+const COMPLETE_SIGNALS =
+  /수정하여\s*전달|수정\s*완료|해결\s*완료|처리\s*완료|배포\s*완료|머지\s*완료|merge_requests\/\d+|이슈\s*해결\s*[:：]/i;
 const IN_PROGRESS_SIGNALS = /브랜치\s*(명)?\s*[:：]|작업\s*중|진행\s*중|확인\s*중|티켓\s*생성|일감\s*생성/;
 
 /** 기존 이슈 업데이트 시 추천할 상태 단계. */
@@ -165,8 +166,10 @@ export function matchHeaderAt(lines: string[], index: number, strict = false): H
   } else if (!strict && !STAMP_ONLY.test(first)) {
     const stampFirst = first.match(STAMP_THEN_NAME);
     const nameFirst = first.match(NAME_THEN_STAMP);
-    if (stampFirst?.[2] && isLikelyName(stampFirst[2])) unit = { author: stampFirst[2].trim(), stamp: stampFirst[1] ?? null, lineCount: 1 };
-    else if (nameFirst?.[1] && isLikelyName(nameFirst[1])) unit = { author: nameFirst[1].trim(), stamp: nameFirst[2] ?? null, lineCount: 1 };
+    if (stampFirst?.[2] && isLikelyName(stampFirst[2]))
+      unit = { author: stampFirst[2].trim(), stamp: stampFirst[1] ?? null, lineCount: 1 };
+    else if (nameFirst?.[1] && isLikelyName(nameFirst[1]))
+      unit = { author: nameFirst[1].trim(), stamp: nameFirst[2] ?? null, lineCount: 1 };
   }
 
   if (unit && EDITED.test(lines[index + unit.lineCount]?.trim() ?? "")) unit.lineCount += 1;
@@ -357,7 +360,11 @@ function prepare(raw: string): Prepared {
 
 /** Teams 표시 이름에서 이름만 남긴다: "정주영(사원) - 유젠" → "정주영". Notion select 옵션이라 쉼표는 뺀다. */
 export function personName(author: string): string {
-  const name = author.split(/\(|\s-\s/)[0]?.replace(/,/g, " ").replace(/\s+/g, " ").trim();
+  const name = author
+    .split(/\(|\s-\s/)[0]
+    ?.replace(/,/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   return name || author.replace(/,/g, " ").trim();
 }
 
@@ -415,7 +422,10 @@ export function parsePastedText(raw: string, options: ParseOptions = {}): Issue 
 }
 
 /** 여러 이슈로 나눌 수 있는지 확인하고, split이면 나눠서 돌려준다. 제목: 필드가 있으면 나누지 않는다. */
-export function parseIssues(raw: string, options: ParseOptions & { split?: boolean } = {}): { issues: Issue[]; splittable: boolean } {
+export function parseIssues(
+  raw: string,
+  options: ParseOptions & { split?: boolean } = {},
+): { issues: Issue[]; splittable: boolean } {
   const prepared = prepare(raw);
   const chunks = prepared.title ? null : splitIssueLines(prepared.lines);
   if (!chunks || options.split === false) {

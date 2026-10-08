@@ -8,7 +8,11 @@ describe("matchSectionLabel", () => {
     ["기대 동작 : 정상 표시", "기대 동작", "정상 표시"],
     ["처리 상황 : 전달 완료", "처리 상황", "전달 완료"],
     ["해결 방법 :", "해결 방법", ""],
-    ["Merge Request: http://gitlab.example.com/a/-/merge_requests/1", "Merge Request", "http://gitlab.example.com/a/-/merge_requests/1"],
+    [
+      "Merge Request: http://gitlab.example.com/a/-/merge_requests/1",
+      "Merge Request",
+      "http://gitlab.example.com/a/-/merge_requests/1",
+    ],
     ["[ 이슈 ]", "이슈", ""],
     ["[위치]", "위치", ""],
     ["[표시되는 내용]", "표시되는 내용", ""],
@@ -20,7 +24,11 @@ describe("matchSectionLabel", () => {
 
   it("번호 라벨", () => {
     expect(matchSectionLabel("이슈 2)")).toEqual({ label: "이슈 2", rest: "", number: 2 });
-    expect(matchSectionLabel("이슈 1) BO 쿠폰 아이콘 없음")).toEqual({ label: "이슈 1", rest: "BO 쿠폰 아이콘 없음", number: 1 });
+    expect(matchSectionLabel("이슈 1) BO 쿠폰 아이콘 없음")).toEqual({
+      label: "이슈 1",
+      rest: "BO 쿠폰 아이콘 없음",
+      number: 1,
+    });
   });
 
   it.each([

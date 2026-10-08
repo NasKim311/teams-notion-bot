@@ -23,7 +23,9 @@ function isIssueType(value: unknown): value is IssueType {
 /** 빈 값 → null, FO/BO → 그대로, 그 외 → undefined(오류) */
 function normalizePlatform(value: unknown): Platform | null | undefined {
   if (value === null || value === undefined || value === "") return null;
-  return typeof value === "string" && (PLATFORMS as readonly string[]).includes(value) ? (value as Platform) : undefined;
+  return typeof value === "string" && (PLATFORMS as readonly string[]).includes(value)
+    ? (value as Platform)
+    : undefined;
 }
 
 /** 빈 값 → null, http(s) URL → 문자열, 그 외 → undefined(오류) */
@@ -49,7 +51,7 @@ function optionalText(value: unknown): string | undefined {
 }
 
 function normalizeAreas(value: unknown): string[] | undefined {
-  const raw = typeof value === "string" ? value.split(",") : value ?? [];
+  const raw = typeof value === "string" ? value.split(",") : (value ?? []);
   if (!Array.isArray(raw)) return undefined;
   const areas = [...new Set(raw.map((area) => (typeof area === "string" ? area.trim() : "")).filter(Boolean))];
   if (areas.length > AREAS_MAX || areas.some((area) => length(area) > AREA_MAX || area.includes(","))) return undefined;

@@ -20,13 +20,18 @@ describe("richText", () => {
   it("URL은 링크로, 끝 문장부호는 링크에서 제외", () => {
     expect(richText("일감 http://redmine.example.com/issues/1. 확인")).toEqual([
       { type: "text", text: { content: "일감 " } },
-      { type: "text", text: { content: "http://redmine.example.com/issues/1", link: { url: "http://redmine.example.com/issues/1" } } },
+      {
+        type: "text",
+        text: { content: "http://redmine.example.com/issues/1", link: { url: "http://redmine.example.com/issues/1" } },
+      },
       { type: "text", text: { content: ". 확인" } },
     ]);
   });
 
   it("주석(annotations)을 모든 조각에 적용", () => {
-    expect(richText("a", { bold: true })).toEqual([{ type: "text", text: { content: "a" }, annotations: { bold: true } }]);
+    expect(richText("a", { bold: true })).toEqual([
+      { type: "text", text: { content: "a" }, annotations: { bold: true } },
+    ]);
   });
 });
 
@@ -50,7 +55,9 @@ describe("toBlocks", () => {
 
   it("머리글 줄은 회색 굵은 문단", () => {
     expect(toBlocks("— 홍길동 · 오후 1:00")[0]).toMatchObject({
-      paragraph: { rich_text: [{ text: { content: "홍길동 · 오후 1:00" }, annotations: { bold: true, color: "gray" } }] },
+      paragraph: {
+        rich_text: [{ text: { content: "홍길동 · 오후 1:00" }, annotations: { bold: true, color: "gray" } }],
+      },
     });
   });
 

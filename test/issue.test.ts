@@ -41,7 +41,10 @@ describe("validateIssue", () => {
   });
 
   it("영역은 쉼표 문자열도 받고 중복·빈 값 제거", () => {
-    expect(validateIssue({ ...valid, areas: " fit, evt,,fit " })).toMatchObject({ ok: true, value: { areas: ["fit", "evt"] } });
+    expect(validateIssue({ ...valid, areas: " fit, evt,,fit " })).toMatchObject({
+      ok: true,
+      value: { areas: ["fit", "evt"] },
+    });
   });
 
   it("작성자는 select 옵션이라 쉼표를 공백으로", () => {

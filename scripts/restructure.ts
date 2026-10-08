@@ -13,11 +13,21 @@ import { notion, plain, queryAllPages } from "./lib/notion";
 const args = process.argv.slice(2);
 const apply = args.includes("--apply");
 const skipIndex = args.indexOf("--skip");
-const skip = new Set(skipIndex === -1 ? [] : (args[skipIndex + 1] ?? "").split(",").map((id) => id.replace(/-/g, "").trim()));
+const skip = new Set(
+  skipIndex === -1 ? [] : (args[skipIndex + 1] ?? "").split(",").map((id) => id.replace(/-/g, "").trim()),
+);
 const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 mkdirSync("scripts/.backups", { recursive: true });
 
-type Plan = { id: string; title: string; before: string; after: string; blocks: any[]; textBlocks: any[]; lastTextId: string };
+type Plan = {
+  id: string;
+  title: string;
+  before: string;
+  after: string;
+  blocks: any[];
+  textBlocks: any[];
+  lastTextId: string;
+};
 const plans: Plan[] = [];
 const preview: string[] = [];
 
@@ -37,7 +47,15 @@ for (const page of await queryAllPages()) {
   console.log(`[${mark}] ${title}`);
   preview.push(`════ [${mark}] ${title} (${id})`, "── 이전", original.text, "── 이후", after, "");
   if (mark === "변경") {
-    plans.push({ id, title, before: original.text, after, blocks, textBlocks: original.textBlocks, lastTextId: original.textBlocks.at(-1).id });
+    plans.push({
+      id,
+      title,
+      before: original.text,
+      after,
+      blocks,
+      textBlocks: original.textBlocks,
+      lastTextId: original.textBlocks.at(-1).id,
+    });
   }
 }
 
@@ -49,14 +67,24 @@ if (!apply) {
   console.log("미리보기만 했습니다. 적용하려면 --apply");
 } else if (plans.length > 0) {
   const backupPath = `scripts/.backups/bodies-${stamp}.json`;
-  writeFileSync(backupPath, JSON.stringify(plans.map(({ id, title, textBlocks }) => ({ id, title, textBlocks })), null, 2));
+  writeFileSync(
+    backupPath,
+    JSON.stringify(
+      plans.map(({ id, title, textBlocks }) => ({ id, title, textBlocks })),
+      null,
+      2,
+    ),
+  );
   console.log(`원본 블록 백업: ${backupPath}`);
 
   for (const plan of plans) {
     // 1) 새 블록을 기존 글 블록 바로 뒤(이미지·업데이트 앞)에 넣고  2) 기존 글 블록을 지운다
     let after = plan.lastTextId;
     for (let i = 0; i < plan.blocks.length; i += 100) {
-      const data = await notion("PATCH", `/blocks/${plan.id}/children`, { children: plan.blocks.slice(i, i + 100), after });
+      const data = await notion("PATCH", `/blocks/${plan.id}/children`, {
+        children: plan.blocks.slice(i, i + 100),
+        after,
+      });
       after = data.results.at(-1)?.id ?? after;
     }
     for (const block of plan.textBlocks) await notion("DELETE", `/blocks/${block.id}`);

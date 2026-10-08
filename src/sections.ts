@@ -63,7 +63,8 @@ export function matchSectionLabel(line: string): SectionLabel | null {
   const text = line.trim();
 
   const numbered = text.match(NUMBERED_LINE);
-  if (numbered?.[1]) return { label: `이슈 ${numbered[1]}`, rest: numbered[2]?.trim() ?? "", number: Number(numbered[1]) };
+  if (numbered?.[1])
+    return { label: `이슈 ${numbered[1]}`, rest: numbered[2]?.trim() ?? "", number: Number(numbered[1]) };
 
   const bracket = text.match(BRACKET_LINE);
   if (bracket?.[1] && !TYPE_TAGS.has(bracket[1].trim())) {
@@ -77,7 +78,8 @@ export function matchSectionLabel(line: string): SectionLabel | null {
   return null;
 }
 
-const CODE_START = /^(const|let|var|if|else|for|while|return|function|import|export|await|async|try|catch|switch|case|class|interface|type|new)\b/;
+const CODE_START =
+  /^(const|let|var|if|else|for|while|return|function|import|export|await|async|try|catch|switch|case|class|interface|type|new)\b/;
 const HANGUL = /[가-힣]/;
 
 /** 코드로 보이는 줄인지 (복사된 코드 조각을 코드 블록으로 묶기 위함). */

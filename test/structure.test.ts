@@ -19,15 +19,34 @@ function frame(content: { symptom?: string; expected?: string; cause?: string; f
 describe("structureBody", () => {
   it("팀 라벨을 표준 섹션 순서로 모은다 (현상 → 기대 동작 → 원인 → 처리·해결)", () => {
     const result = structureBody(
-      body("처리 상황 : 전달 완료", "", "이슈 원인 : 조건문 반대", "", "기대 동작 : 에러 Alert", "", "이슈 사항 : 로그인 안 됨"),
+      body(
+        "처리 상황 : 전달 완료",
+        "",
+        "이슈 원인 : 조건문 반대",
+        "",
+        "기대 동작 : 에러 Alert",
+        "",
+        "이슈 사항 : 로그인 안 됨",
+      ),
     );
-    expect(result).toBe(frame({ symptom: "로그인 안 됨", expected: "에러 Alert", cause: "조건문 반대", fix: "전달 완료" }));
+    expect(result).toBe(
+      frame({ symptom: "로그인 안 됨", expected: "에러 Alert", cause: "조건문 반대", fix: "전달 완료" }),
+    );
   });
 
   it("내용이 없는 섹션도 제목은 넣는다", () => {
-    expect(structureBody("화면이 깨져요\n새로고침하면 정상")).toBe(frame({ symptom: "화면이 깨져요\n새로고침하면 정상" }));
+    expect(structureBody("화면이 깨져요\n새로고침하면 정상")).toBe(
+      frame({ symptom: "화면이 깨져요\n새로고침하면 정상" }),
+    );
     const blocks = toBlocks(structureBody("화면이 깨져요"));
-    expect(blocks.map((b) => b.type)).toEqual(["heading_3", "paragraph", "heading_3", "heading_3", "heading_3", "heading_3"]);
+    expect(blocks.map((b) => b.type)).toEqual([
+      "heading_3",
+      "paragraph",
+      "heading_3",
+      "heading_3",
+      "heading_3",
+      "heading_3",
+    ]);
   });
 
   it("빈 본문이면 섹션 제목만", () => {
@@ -63,7 +82,10 @@ describe("structureBody", () => {
       ),
     );
     expect(result).toBe(
-      frame({ symptom: "BO 쿠폰 아이콘 없음", note: "▸ Merge Request\nhttp://gitlab.example.com/a/-/merge_requests/1 (dev 미머지)" }),
+      frame({
+        symptom: "BO 쿠폰 아이콘 없음",
+        note: "▸ Merge Request\nhttp://gitlab.example.com/a/-/merge_requests/1 (dev 미머지)",
+      }),
     );
   });
 

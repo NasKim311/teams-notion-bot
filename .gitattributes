@@ -1,0 +1,2 @@
+# 작업 폴더도 LF로 통일 (Biome lineEnding: lf와 맞춤)
+* text=auto eol=lf

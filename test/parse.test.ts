@@ -24,7 +24,13 @@ const lines = (...rows: string[]) => rows;
 describe("parsePastedText — 추천 양식", () => {
   it("필드 줄로 작성자를 채우고 작성자/링크 줄은 본문에서 뺀다", () => {
     const issue = parsePastedText(
-      ["[버그] 로그인 버튼 무반응", "작성자: 홍길동(사원) - 회사", `링크: ${LINK}`, "재현: 로그인 클릭", "기대: 이동"].join("\n"),
+      [
+        "[버그] 로그인 버튼 무반응",
+        "작성자: 홍길동(사원) - 회사",
+        `링크: ${LINK}`,
+        "재현: 로그인 클릭",
+        "기대: 이동",
+      ].join("\n"),
     );
     expect(issue).toEqual({
       title: "로그인 버튼 무반응",
@@ -48,7 +54,10 @@ describe("parsePastedText — 추천 양식", () => {
   });
 
   it("전각 콜론, 원문/원문 링크/링크 줄은 저장하지 않고 본문에서 뺀다", () => {
-    expect(parsePastedText(`작성자： 김개발\n원문 링크: ${LINK}\n내용`)).toMatchObject({ author: "김개발", body: "내용" });
+    expect(parsePastedText(`작성자： 김개발\n원문 링크: ${LINK}\n내용`)).toMatchObject({
+      author: "김개발",
+      body: "내용",
+    });
     expect(parsePastedText(`원문: ${LINK}\n내용`).body).toBe("내용");
     expect(parsePastedText("링크: https://example.com/a?b=1\n내용").body).toBe("내용");
   });
@@ -80,7 +89,14 @@ describe("parsePastedText — Teams 복사 형식", () => {
 
   it("전달된 메시지는 연달아 붙은 머리글 중 마지막(원작성자)을 작성자로", () => {
     const issue = parsePastedText(
-      lines("박팀장(담당) - 회사", "어제 오전 8:43", "김개발(담당) - 회사", "2026-09-30 오후 1:25", "", "BO 쿠폰 화면 아이콘 없음").join("\n"),
+      lines(
+        "박팀장(담당) - 회사",
+        "어제 오전 8:43",
+        "김개발(담당) - 회사",
+        "2026-09-30 오후 1:25",
+        "",
+        "BO 쿠폰 화면 아이콘 없음",
+      ).join("\n"),
     );
     expect(issue.author).toBe("김개발");
     expect(issue.body).toBe(
@@ -90,7 +106,14 @@ describe("parsePastedText — Teams 복사 형식", () => {
 
   it("본문 중간의 다른 사람 머리글도 한 줄로 바꾸지만 작성자는 첫 머리글", () => {
     const issue = parsePastedText(
-      lines("홍길동(사원) - 회사", "오후 1:32", "이슈 사항 : 정렬 UI 초기화", "김개발(사원) - 회사", "오후 1:57", "어떻게 파악하셨나요?").join("\n"),
+      lines(
+        "홍길동(사원) - 회사",
+        "오후 1:32",
+        "이슈 사항 : 정렬 UI 초기화",
+        "김개발(사원) - 회사",
+        "오후 1:57",
+        "어떻게 파악하셨나요?",
+      ).join("\n"),
     );
     expect(issue.author).toBe("홍길동");
     expect(issue.body).toContain("— 김개발(사원) - 회사 · 오후 1:57");
@@ -135,7 +158,8 @@ describe("parsePastedText — Teams 복사 형식", () => {
   });
 
   it("개발 정보도 함께 추출 (일감 기본 주소는 옵션)", () => {
-    const text = "이슈 사항 : src/views/fit/pages/A.tsx 75번째 줄\n문제 설명\n처리 상황 : 일감번호 8795 처리 중 삽입된 코드";
+    const text =
+      "이슈 사항 : src/views/fit/pages/A.tsx 75번째 줄\n문제 설명\n처리 상황 : 일감번호 8795 처리 중 삽입된 코드";
     expect(parsePastedText(text, { redmineIssueUrl: "http://redmine.example.com/issues" })).toMatchObject({
       workItemUrl: "http://redmine.example.com/issues/8795",
       files: "src/views/fit/pages/A.tsx:75",
@@ -183,7 +207,9 @@ describe("matchHeaderAt", () => {
 
   it("strict(본문 중간)에서는 표시 이름 형태만 인정", () => {
     expect(matchHeaderAt(["홍길동", "오후 4:30"], 0, true)).toBeNull();
-    expect(matchHeaderAt(["홍길동(사원) - 회사", "오후 4:30"], 0, true)).toMatchObject({ author: "홍길동(사원) - 회사" });
+    expect(matchHeaderAt(["홍길동(사원) - 회사", "오후 4:30"], 0, true)).toMatchObject({
+      author: "홍길동(사원) - 회사",
+    });
   });
 });
 
@@ -213,18 +239,30 @@ describe("makeIssueTitle", () => {
       ["src/hooks/useBack.ts", "103~119 줄", "if (useFirst === undefined) {", "useFirst 값 분기가 중복됨"],
       "useFirst 값 분기가 중복됨",
     ],
+    ["경로 뒤 조사 제거", ["src/views/brd/Map.tsx 의 PinchZoom 높이가 흔들림"], "PinchZoom 높이가 흔들림"],
     [
-      "경로 뒤 조사 제거",
-      ["src/views/brd/Map.tsx 의 PinchZoom 높이가 흔들림"],
-      "PinchZoom 높이가 흔들림",
+      "대괄호 섹션",
+      ["feature/some-branch", "", "[ 이슈 ]", "다국어 페이지 등급을 잘못 파악함"],
+      "다국어 페이지 등급을 잘못 파악함",
     ],
-    ["대괄호 섹션", ["feature/some-branch", "", "[ 이슈 ]", "다국어 페이지 등급을 잘못 파악함"], "다국어 페이지 등급을 잘못 파악함"],
     ["번호 섹션", ["이슈 1)", "BO 쿠폰 등록 화면 아이콘 없음"], "BO 쿠폰 등록 화면 아이콘 없음"],
     ["머리글 줄은 무시", ["— 홍길동 · 오후 1:00", "그냥 첫 문장"], "그냥 첫 문장"],
     ["=> 제안 줄은 요약에서 제외", ["이슈 사항 : Foo.tsx", "=> 이렇게 고치면 됨", "실제 문제 설명"], "실제 문제 설명"],
-    ["인사·전달 문장과 내용 없는 라벨은 건너뜀", ["프론트 이슈는 아닌것 같지만 올려봅니다..", "이슈 2 :", "쿠폰 목록이 비어 있음"], "쿠폰 목록이 비어 있음"],
-    ["현상 섹션이 비어 있으면 본문 전체에서", ["[ 🐞 현상 ]", "[ 🎯 기대 동작 ]", "[ 🔍 원인 ]", "스크롤 보정 오류"], "스크롤 보정 오류"],
-    ["브랜치·링크만 있는 줄은 건너뜀", ["브랜치명 : feature/a-#1", "Merge Request : http://g/-/merge_requests/1", "이슈 원인 :", "스크롤 보정"], "스크롤 보정"],
+    [
+      "인사·전달 문장과 내용 없는 라벨은 건너뜀",
+      ["프론트 이슈는 아닌것 같지만 올려봅니다..", "이슈 2 :", "쿠폰 목록이 비어 있음"],
+      "쿠폰 목록이 비어 있음",
+    ],
+    [
+      "현상 섹션이 비어 있으면 본문 전체에서",
+      ["[ 🐞 현상 ]", "[ 🎯 기대 동작 ]", "[ 🔍 원인 ]", "스크롤 보정 오류"],
+      "스크롤 보정 오류",
+    ],
+    [
+      "브랜치·링크만 있는 줄은 건너뜀",
+      ["브랜치명 : feature/a-#1", "Merge Request : http://g/-/merge_requests/1", "이슈 원인 :", "스크롤 보정"],
+      "스크롤 보정",
+    ],
   ])("%s", (_label, input, expected) => {
     expect(makeIssueTitle(input)).toBe(expected);
   });
@@ -243,7 +281,10 @@ describe("polishSummary", () => {
     ["결과를 캐싱하지 않음/ 쓰로틀링 되지 않음", "결과를 캐싱하지 않음"],
     ["빈 항목이 출력됩니다. 실제 등록은 문제 없습니다", "빈 항목이 출력됨"],
     ["단순히 공통 컴포넌트로 빼는 방법이 더 나을 것 같습니다.", "공통 컴포넌트로 빼는 방법이 더 나음"],
-    ["useFirst 는 true,false,undefined 값만 가질 수 있는데 분기가 중복됨", "useFirst는 true,false,undefined 값만 가질 수 있음"],
+    [
+      "useFirst 는 true,false,undefined 값만 가질 수 있는데 분기가 중복됨",
+      "useFirst는 true,false,undefined 값만 가질 수 있음",
+    ],
     ["/fit/fits 페이지 정렬 초기화", "fits 페이지 정렬 초기화"],
     ["쿠폰 미리보기 화면인데 빈 항목 출력", "쿠폰 미리보기 화면에서 빈 항목 출력"],
     ["검색결과 수를 보여주는 UI 인데 length 값이 표시됨", "검색결과 수를 보여주는 UI에서 length 값이 표시됨"],
@@ -265,11 +306,12 @@ describe("withScope / makeTitle", () => {
   });
 
   it("60자를 넘으면 '…' 없이 60자 안에서 끝나는 마지막 절까지 쓰고 끝맺는다", () => {
-    const long = "뒤로가기로 스크롤 위치 복원 이후 위쪽 콘텐츠가 비동기적으로 로드되면서 브라우저가 스크롤을 자동으로 보정하게 되는 문제";
+    const long =
+      "뒤로가기로 스크롤 위치 복원 이후 위쪽 콘텐츠가 비동기적으로 로드되면서 브라우저가 스크롤을 자동으로 보정하게 되는 문제";
     expect(makeTitle(long)).toBe("뒤로가기로 스크롤 위치 복원 이후 위쪽 콘텐츠가 비동기적으로 로드됨");
-    expect(makeTitle(`[fit] 검색창에 길이 제한이 없어 414 request uri too large 에러가 발생하면 에러 페이지로 넘어감`)).toBe(
-      "[fit] 검색창에 길이 제한이 없음",
-    );
+    expect(
+      makeTitle(`[fit] 검색창에 길이 제한이 없어 414 request uri too large 에러가 발생하면 에러 페이지로 넘어감`),
+    ).toBe("[fit] 검색창에 길이 제한이 없음");
   });
 
   it("'~하고'에서는 끊지 않는다 (조건이 이어지는 문장)", () => {
@@ -352,7 +394,17 @@ describe("splitIssueLines / parseIssues", () => {
   });
 
   it("[ 이슈 ] 주 섹션이 반복되면 등장할 때마다 나눈다", () => {
-    const text = ["feature/multi_rt", "", "[ 이슈 ]", "첫 번째 문제", "[ 개선 ]", "고침", "", "[ 이슈 ]", "두 번째 문제"].join("\n");
+    const text = [
+      "feature/multi_rt",
+      "",
+      "[ 이슈 ]",
+      "첫 번째 문제",
+      "[ 개선 ]",
+      "고침",
+      "",
+      "[ 이슈 ]",
+      "두 번째 문제",
+    ].join("\n");
     const { issues } = parseIssues(text);
     expect(issues.map((i) => i.title)).toEqual(["첫 번째 문제", "두 번째 문제"]);
     expect(issues.every((i) => i.branch === "feature/multi_rt")).toBe(true);
@@ -366,12 +418,18 @@ describe("splitIssueLines / parseIssues", () => {
   });
 
   it("나눌 수 없으면 하나, splittable false", () => {
-    expect(parseIssues("이슈 사항 : 하나뿐\n기대 동작 : 정상")).toMatchObject({ splittable: false, issues: [{ title: "하나뿐" }] });
+    expect(parseIssues("이슈 사항 : 하나뿐\n기대 동작 : 정상")).toMatchObject({
+      splittable: false,
+      issues: [{ title: "하나뿐" }],
+    });
     expect(splitIssueLines(["이슈 1)", "하나만 번호"])).toBeNull();
   });
 
   it("제목: 필드가 있으면 나누지 않는다", () => {
-    expect(parseIssues("제목: 묶음 이슈\n이슈 1)\nA\n이슈 2)\nB")).toMatchObject({ splittable: false, issues: [{ title: "묶음 이슈" }] });
+    expect(parseIssues("제목: 묶음 이슈\n이슈 1)\nA\n이슈 2)\nB")).toMatchObject({
+      splittable: false,
+      issues: [{ title: "묶음 이슈" }],
+    });
   });
 
   it("'이슈 1)은 ...' 같은 문장은 라벨로 보지 않는다", () => {
@@ -394,7 +452,9 @@ describe("suggestStatusKind", () => {
 
 describe("회귀: 말머리 대괄호", () => {
   it("이슈 사항 다음 줄의 '[테스트] ...'는 섹션이 아니라 요약으로 쓴다", () => {
-    const issue = parsePastedText("이슈 사항 : src/views/e2e/pages/E2eCheck.tsx 12번째 줄\n[테스트] 자동 검증용 이슈\n기대 동작 : 정상");
+    const issue = parsePastedText(
+      "이슈 사항 : src/views/e2e/pages/E2eCheck.tsx 12번째 줄\n[테스트] 자동 검증용 이슈\n기대 동작 : 정상",
+    );
     expect(issue.title).toBe("[e2e] [테스트] 자동 검증용 이슈");
   });
 });

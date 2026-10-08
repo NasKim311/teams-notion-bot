@@ -55,11 +55,9 @@ describe("extractFiles", () => {
 describe("extractAreas", () => {
   it("views/<모듈> 경로와 /<모듈>/... 페이지 표현에서 영역 추출", () => {
     const text = "/fit/fits 페이지 중단부 정렬";
-    expect(extractAreas(text, ["src/views/fit/pages/A.tsx", "view/evt/components/B.tsx", "/view/frgnr/home.tsx"])).toEqual([
-      "fit",
-      "evt",
-      "frgnr",
-    ]);
+    expect(
+      extractAreas(text, ["src/views/fit/pages/A.tsx", "view/evt/components/B.tsx", "/view/frgnr/home.tsx"]),
+    ).toEqual(["fit", "evt", "frgnr"]);
   });
 
   it("'fit/fitBrandSearch'처럼 모듈 이름으로 시작하는 페이지 경로", () => {

@@ -15,7 +15,13 @@ for (const [name, property] of Object.entries(db.properties)) {
   }
   if (property.type === "status") {
     const byId = Object.fromEntries(property.status.options.map((o: { id: string; name: string }) => [o.id, o.name]));
-    detail = " " + property.status.groups.map((g: { name: string; option_ids: string[] }) => `${g.name}{${g.option_ids.map((id) => byId[id]).join(", ")}}`).join(" ");
+    detail =
+      " " +
+      property.status.groups
+        .map(
+          (g: { name: string; option_ids: string[] }) => `${g.name}{${g.option_ids.map((id) => byId[id]).join(", ")}}`,
+        )
+        .join(" ");
   }
   console.log(`  ${name} : ${property.type}${detail}`);
 }
@@ -39,5 +45,7 @@ for (const key of Object.keys(PROP) as (keyof typeof PROP)[]) {
 const known = new Set<string>(Object.values(PROP));
 const extra = Object.keys(db.properties).filter((name) => !known.has(name));
 if (extra.length > 0) console.log(`\n── 코드가 쓰지 않는 컬럼: ${extra.join(", ")}`);
-console.log(problems === 0 ? "\n코드와 DB가 맞습니다." : `\n맞지 않는 컬럼 ${problems}개 — notion-sync 절차로 맞추세요.`);
+console.log(
+  problems === 0 ? "\n코드와 DB가 맞습니다." : `\n맞지 않는 컬럼 ${problems}개 — notion-sync 절차로 맞추세요.`,
+);
 process.exitCode = problems === 0 ? 0 : 1;

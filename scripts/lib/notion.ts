@@ -42,7 +42,8 @@ export async function notion<T = any>(method: string, path: string, body?: unkno
 
 /** Notion에서 읽은 rich_text(plain_text) 또는 우리가 만든 블록(text.content) 모두 지원 */
 export type RichText = { plain_text?: string; text?: { content: string }; annotations?: { color?: string } };
-export const plain = (items: RichText[] = []) => items.map((item) => item.plain_text ?? item.text?.content ?? "").join("");
+export const plain = (items: RichText[] = []) =>
+  items.map((item) => item.plain_text ?? item.text?.content ?? "").join("");
 
 /** DB의 모든 페이지 (100개씩 이어서 조회) */
 export async function queryAllPages(): Promise<any[]> {

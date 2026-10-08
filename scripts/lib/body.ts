@@ -9,7 +9,10 @@ export async function listChildren(blockId: string): Promise<any[]> {
   const blocks: any[] = [];
   let cursor: string | undefined;
   do {
-    const data = await notion("GET", `/blocks/${blockId}/children?page_size=100${cursor ? `&start_cursor=${cursor}` : ""}`);
+    const data = await notion(
+      "GET",
+      `/blocks/${blockId}/children?page_size=100${cursor ? `&start_cursor=${cursor}` : ""}`,
+    );
     blocks.push(...data.results);
     cursor = data.has_more ? data.next_cursor : undefined;
   } while (cursor);

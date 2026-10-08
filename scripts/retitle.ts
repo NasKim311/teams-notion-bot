@@ -11,7 +11,9 @@ import { notion, plain, queryAllPages } from "./lib/notion";
 const args = process.argv.slice(2);
 const apply = args.includes("--apply");
 const skipIndex = args.indexOf("--skip");
-const skip = new Set(skipIndex === -1 ? [] : (args[skipIndex + 1] ?? "").split(",").map((id) => id.replace(/-/g, "").trim()));
+const skip = new Set(
+  skipIndex === -1 ? [] : (args[skipIndex + 1] ?? "").split(",").map((id) => id.replace(/-/g, "").trim()),
+);
 
 const changes: { id: string; old: string; next: string }[] = [];
 const pages = await queryAllPages();

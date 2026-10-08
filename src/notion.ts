@@ -118,7 +118,13 @@ export async function appendBlocks(
   fetchImpl: typeof fetch = fetch,
 ): Promise<void> {
   for (let i = 0; i < blocks.length; i += MAX_CHILDREN) {
-    await notionRequest(env, "PATCH", `/blocks/${blockId}/children`, { children: blocks.slice(i, i + MAX_CHILDREN) }, fetchImpl);
+    await notionRequest(
+      env,
+      "PATCH",
+      `/blocks/${blockId}/children`,
+      { children: blocks.slice(i, i + MAX_CHILDREN) },
+      fetchImpl,
+    );
   }
 }
 
@@ -223,7 +229,9 @@ export async function getStatusOptions(env: NotionEnv, fetchImpl: typeof fetch =
   // 같은 이름(진행 중/완료)의 옵션이 그룹에 있으면 그것을, 없으면 그룹의 첫 옵션을 고른다 (완료 그룹의 "미진행" 같은 옵션 회피).
   const pick = (groupIndex: number, preferred: string) => {
     const ids = status?.groups?.[groupIndex]?.option_ids ?? [];
-    const inGroup = ids.map((id) => options.find((option) => option.id === id)).filter((option) => option !== undefined);
+    const inGroup = ids
+      .map((id) => options.find((option) => option.id === id))
+      .filter((option) => option !== undefined);
     return (inGroup.find((option) => option.name === preferred) ?? inGroup[0])?.name ?? null;
   };
   return { names: options.map((option) => option.name), inProgress: pick(1, "진행 중"), complete: pick(2, "완료") };
@@ -241,7 +249,11 @@ export async function findExistingPages(
     env,
     "POST",
     `/databases/${env.NOTION_DATABASE_ID}/query`,
-    { filter: { property: PROP.workItem, url: { equals: issue.workItemUrl } }, page_size: 5, sorts: [{ timestamp: "created_time", direction: "descending" }] },
+    {
+      filter: { property: PROP.workItem, url: { equals: issue.workItemUrl } },
+      page_size: 5,
+      sorts: [{ timestamp: "created_time", direction: "descending" }],
+    },
     fetchImpl,
   );
   return (data.results ?? []).map(toExistingPage);
@@ -254,21 +266,31 @@ const mergeList = (current: string, added: string) =>
 export function buildUpdateProperties(page: PageObject, issue: Issue, status: string | null) {
   const props = page.properties;
   const url = (name: string) => (props[name]?.url as string | null | undefined) ?? null;
-  const areas = ((props[PROP.areas]?.multi_select as { name: string }[] | undefined) ?? []).map((option) => option.name);
+  const areas = ((props[PROP.areas]?.multi_select as { name: string }[] | undefined) ?? []).map(
+    (option) => option.name,
+  );
 
   const update: Record<string, unknown> = {};
   if (status) update[PROP.status] = { status: { name: status } };
-  for (const [name, value] of [[PROP.workItem, issue.workItemUrl], [PROP.mr, issue.mrUrl]] as const) {
+  for (const [name, value] of [
+    [PROP.workItem, issue.workItemUrl],
+    [PROP.mr, issue.mrUrl],
+  ] as const) {
     if (value && !url(name) && name in props) update[name] = { url: value };
   }
-  if (issue.platform && !props[PROP.platform]?.select && PROP.platform in props) update[PROP.platform] = select(issue.platform);
-  for (const [name, value] of [[PROP.branch, issue.branch], [PROP.files, issue.files]] as const) {
+  if (issue.platform && !props[PROP.platform]?.select && PROP.platform in props)
+    update[PROP.platform] = select(issue.platform);
+  for (const [name, value] of [
+    [PROP.branch, issue.branch],
+    [PROP.files, issue.files],
+  ] as const) {
     if (!value || !(name in props)) continue;
     const merged = mergeList(readText(props[name]), value);
     if (merged !== readText(props[name])) update[name] = { rich_text: plainText(merged) };
   }
   const newAreas = issue.areas.filter((area) => !areas.includes(area));
-  if (newAreas.length > 0 && PROP.areas in props) update[PROP.areas] = { multi_select: [...areas, ...newAreas].map((name) => ({ name })) };
+  if (newAreas.length > 0 && PROP.areas in props)
+    update[PROP.areas] = { multi_select: [...areas, ...newAreas].map((name) => ({ name })) };
   return update;
 }
 
@@ -276,7 +298,11 @@ function updateHeading(issue: Issue, now: Date): NotionBlock[] {
   const when = now.toLocaleString("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "short", timeStyle: "short" });
   return [
     { object: "block", type: "divider", divider: {} },
-    { object: "block", type: "heading_3", heading_3: { rich_text: plainText(`🔄 업데이트 · ${issue.author} · ${when}`) } },
+    {
+      object: "block",
+      type: "heading_3",
+      heading_3: { rich_text: plainText(`🔄 업데이트 · ${issue.author} · ${when}`) },
+    },
   ];
 }
 

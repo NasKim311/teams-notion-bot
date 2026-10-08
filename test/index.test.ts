@@ -1,5 +1,5 @@
 import { env } from "cloudflare:test";
-import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import worker from "../src/index";
 import type { Env } from "../src/types";
 
@@ -10,7 +10,11 @@ type CfRequest = Request<unknown, IncomingRequestCfProperties>;
 
 function request(
   path: string,
-  { method = "GET", body, password = env.FORM_PASSWORD }: { method?: string; body?: string; password?: string | null } = {},
+  {
+    method = "GET",
+    body,
+    password = env.FORM_PASSWORD,
+  }: { method?: string; body?: string; password?: string | null } = {},
 ): CfRequest {
   const headers = new Headers();
   if (password !== null) headers.set("Authorization", `Bearer ${encodeURIComponent(password)}`);
@@ -160,7 +164,9 @@ describe("POST /api/preview", () => {
 
   it("같은 일감의 기존 이슈를 찾아 알려준다", async () => {
     mockNotion([EXISTING]);
-    const res = await call(post("/api/preview", { text: "http://redmine.example.com/issues/1\n수정하여 전달드립니다." }));
+    const res = await call(
+      post("/api/preview", { text: "http://redmine.example.com/issues/1\n수정하여 전달드립니다." }),
+    );
     const data = (await res.json()) as { lookups: unknown[] };
     expect(data.lookups).toEqual([
       {
@@ -171,7 +177,10 @@ describe("POST /api/preview", () => {
   });
 
   it("레드마인 일감이 없으면 Notion을 조회하지 않는다 (Teams 링크만 있어도)", async () => {
-    const data = (await (await call(post("/api/preview", { text: `그냥 문장\n${LINK}` }))).json()) as Record<string, unknown>;
+    const data = (await (await call(post("/api/preview", { text: `그냥 문장\n${LINK}` }))).json()) as Record<
+      string,
+      unknown
+    >;
     expect(data).toMatchObject({ lookups: [{ matches: [], suggestedStatus: null }], statusOptions: [] });
     expect(fetchSpy).not.toHaveBeenCalled();
   });
@@ -185,7 +194,10 @@ describe("POST /api/preview", () => {
 
   it("여러 이슈는 나눠서, split: false면 하나로", async () => {
     const text = "이슈 1)\nA 문제\n이슈 2)\nB 문제";
-    const split = (await (await call(post("/api/preview", { text }))).json()) as { issues: unknown[]; splittable: boolean };
+    const split = (await (await call(post("/api/preview", { text }))).json()) as {
+      issues: unknown[];
+      splittable: boolean;
+    };
     expect(split).toMatchObject({ splittable: true });
     expect(split.issues).toHaveLength(2);
 
@@ -256,7 +268,9 @@ describe("POST /api/issues/update", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ url: "https://www.notion.so/existing" });
 
-    const calls = fetchSpy.mock.calls.map(([u, init]) => `${init?.method} ${String(u).replace("https://api.notion.com/v1", "")}`);
+    const calls = fetchSpy.mock.calls.map(
+      ([u, init]) => `${init?.method} ${String(u).replace("https://api.notion.com/v1", "")}`,
+    );
     expect(calls).toEqual([`GET /pages/${PAGE_ID}`, `PATCH /blocks/${PAGE_ID}/children`, `PATCH /pages/${PAGE_ID}`]);
   });
 
@@ -287,12 +301,18 @@ describe("POST /api/uploads", () => {
     if (file) form.append("file", file, name);
     const headers = new Headers();
     if (password !== null) headers.set("Authorization", `Bearer ${encodeURIComponent(password ?? env.FORM_PASSWORD)}`);
-    return new Request<unknown, IncomingRequestCfProperties>("https://bot.example/api/uploads", { method: "POST", body: form, headers });
+    return new Request<unknown, IncomingRequestCfProperties>("https://bot.example/api/uploads", {
+      method: "POST",
+      body: form,
+      headers,
+    });
   }
 
   it("Notion에 업로드하고 id를 돌려준다", async () => {
     fetchSpy.mockImplementation(async (input) =>
-      String(input).endsWith("/send") ? Response.json({ status: "uploaded" }) : Response.json({ id: UPLOAD_ID, status: "pending" }),
+      String(input).endsWith("/send")
+        ? Response.json({ status: "uploaded" })
+        : Response.json({ id: UPLOAD_ID, status: "pending" }),
     );
     const res = await call(upload(new Blob([new Uint8Array([137, 80, 78, 71])], { type: "image/png" })));
     expect(res.status).toBe(201);
@@ -345,9 +365,12 @@ describe("스크린샷 첨부", () => {
     expect(children.at(-1).type).toBe("image");
   });
 
-  it.each([[["not-an-id"]], ["x"], [Array.from({ length: 11 }, () => IMAGE_ID)]])("잘못된 imageIds %# → 400", async (imageIds) => {
-    const res = await call(post("/api/issues", { ...issue, imageIds }));
-    expect(res.status).toBe(400);
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
+  it.each([[["not-an-id"]], ["x"], [Array.from({ length: 11 }, () => IMAGE_ID)]])(
+    "잘못된 imageIds %# → 400",
+    async (imageIds) => {
+      const res = await call(post("/api/issues", { ...issue, imageIds }));
+      expect(res.status).toBe(400);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    },
+  );
 });
