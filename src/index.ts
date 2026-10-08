@@ -8,6 +8,7 @@ import {
   getStatusOptions,
   NotionError,
   notionErrorMessage,
+  uploadImage,
 } from "./notion";
 import { contentSecurityPolicy, generateNonce, renderPage } from "./page";
 import { parseIssues, suggestStatusKind } from "./parse";
@@ -17,6 +18,16 @@ import type { Env, Issue } from "./types";
 const REQUEST_MAX = 1_000_000;
 const PAGE_ID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
 const STATUS_MAX = 100;
+const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const IMAGES_MAX = 10;
+
+/** 업로드된 이미지 id 목록 검증. 없으면 빈 배열, 형식이 틀리면 undefined. */
+function readImageIds(value: unknown): string[] | undefined {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > IMAGES_MAX) return undefined;
+  return value.every((id) => typeof id === "string" && PAGE_ID.test(id)) ? (value as string[]) : undefined;
+}
 
 async function readJson(request: Request): Promise<unknown> {
   const raw = await request.text();
@@ -75,11 +86,14 @@ async function handlePreview(request: Request, env: Env): Promise<Response> {
 }
 
 async function handleCreate(request: Request, env: Env): Promise<Response> {
-  const result = validateIssue(await readJson(request));
+  const data = await readJson(request);
+  const result = validateIssue(data);
   if (!result.ok) return jsonError(400, result.error);
+  const imageIds = readImageIds((data as { imageIds?: unknown }).imageIds);
+  if (!imageIds) return jsonError(400, "스크린샷 정보가 올바르지 않습니다.");
 
   try {
-    const url = await createNotionPage(result.value, env);
+    const url = await createNotionPage(result.value, env, fetch, imageIds);
     return json({ url }, 201);
   } catch (error) {
     logError("Notion 등록 실패", error);
@@ -88,7 +102,7 @@ async function handleCreate(request: Request, env: Env): Promise<Response> {
 }
 
 async function handleUpdate(request: Request, env: Env): Promise<Response> {
-  const data = (await readJson(request)) as { pageId?: unknown; issue?: unknown; status?: unknown } | undefined;
+  const data = (await readJson(request)) as { pageId?: unknown; issue?: unknown; status?: unknown; imageIds?: unknown } | undefined;
   if (typeof data?.pageId !== "string" || !PAGE_ID.test(data.pageId)) return jsonError(400, "기존 이슈 정보가 올바르지 않습니다.");
 
   const status = data.status === null || data.status === undefined || data.status === "" ? null : data.status;
@@ -96,12 +110,36 @@ async function handleUpdate(request: Request, env: Env): Promise<Response> {
 
   const result = validateIssue(data.issue);
   if (!result.ok) return jsonError(400, result.error);
+  const imageIds = readImageIds(data.imageIds);
+  if (!imageIds) return jsonError(400, "스크린샷 정보가 올바르지 않습니다.");
 
   try {
-    const url = await appendUpdate(data.pageId, result.value, status, env);
+    const url = await appendUpdate(data.pageId, result.value, status, env, fetch, new Date(), imageIds);
     return json({ url });
   } catch (error) {
     logError("Notion 업데이트 실패", error);
+    return jsonError(502, notionErrorMessage(error));
+  }
+}
+
+async function handleUpload(request: Request, env: Env): Promise<Response> {
+  if (!(request.headers.get("Content-Type") ?? "").startsWith("multipart/form-data")) {
+    return jsonError(400, "이미지 파일을 보내주세요.");
+  }
+  let file: File | string | null;
+  try {
+    file = (await request.formData()).get("file");
+  } catch {
+    return jsonError(400, "이미지 파일을 읽지 못했습니다.");
+  }
+  if (!(file instanceof File)) return jsonError(400, "이미지 파일을 보내주세요.");
+  if (!IMAGE_TYPES.has(file.type)) return jsonError(400, "PNG, JPEG, GIF, WEBP 이미지만 첨부할 수 있어요.");
+  if (file.size > IMAGE_MAX_BYTES) return jsonError(400, "이미지는 5MB 이하만 첨부할 수 있어요.");
+
+  try {
+    return json({ id: await uploadImage(file, env) }, 201);
+  } catch (error) {
+    logError("이미지 업로드 실패", error);
     return jsonError(502, notionErrorMessage(error));
   }
 }
@@ -110,6 +148,7 @@ const API_ROUTES: Record<string, (request: Request, env: Env) => Promise<Respons
   "/api/preview": handlePreview,
   "/api/issues": handleCreate,
   "/api/issues/update": handleUpdate,
+  "/api/uploads": handleUpload,
 };
 
 export default {

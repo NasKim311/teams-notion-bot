@@ -88,6 +88,13 @@ export function renderPage(nonce: string): string {
   .card-head strong { font-size: 15px; }
   .card.skipped .fields { opacity: .4; }
   .card.done { border-color: var(--ok); }
+  .images { margin-top: 12px; }
+  .images input[type=file] { margin-top: 8px; padding: 6px; }
+  .thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .thumbs:empty { display: none; }
+  .thumb { position: relative; }
+  .thumb img { display: block; width: 112px; height: 80px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
+  .thumb button { position: absolute; top: 4px; right: 4px; padding: 0 7px; line-height: 20px; font-size: 12px; }
   .match { background: var(--soft); border-radius: 8px; padding: 10px 12px; margin-top: 12px; }
   .match a { color: var(--accent); }
   .result { margin-top: 10px; font-weight: 600; }
@@ -123,6 +130,11 @@ export function renderPage(nonce: string): string {
         작성자:·링크: 줄은 본문에서 빠지고, 링크는 Teams 메시지 ••• → 링크 복사로 얻을 수 있어요.</p>
       <button type="button" id="useTemplate">양식 넣기</button>
     </details>
+    <div class="images">
+      <div class="hint">스크린샷: 이 화면에서 Ctrl+V로 이미지를 붙여넣거나 파일을 선택하세요 (PNG/JPEG/GIF/WEBP, 5MB 이하). 미리보기 후 첫 번째 이슈에 붙어요.</div>
+      <div class="thumbs" id="pendingThumbs"></div>
+      <input type="file" id="pendingFile" accept="image/png,image/jpeg,image/gif,image/webp" multiple aria-label="스크린샷 파일 선택">
+    </div>
     <div class="row">
       <button type="button" class="primary" id="previewBtn">미리보기</button>
       <span class="hint">Ctrl+Enter</span>
@@ -172,6 +184,11 @@ export function renderPage(nonce: string): string {
       </div>
       <label>관련 파일<input data-field="files" maxlength="2000" placeholder="쉼표로 구분 (예: src/views/fit/pages/FitDetail.tsx:75)"></label>
       <label>본문<textarea data-field="body" rows="10"></textarea></label>
+      <div class="images">
+        <div class="hint">스크린샷 (이 카드를 클릭한 뒤 Ctrl+V, 또는 파일 선택)</div>
+        <div class="thumbs" data-role="thumbs"></div>
+        <input type="file" data-role="file" accept="image/png,image/jpeg,image/gif,image/webp" multiple aria-label="스크린샷 파일 선택">
+      </div>
     </div>
     <div class="result" data-role="result" hidden></div>
   </div>
@@ -220,13 +237,15 @@ export function renderPage(nonce: string): string {
     ["previewBtn", "submitBtn", "backBtn", "split"].forEach(function (id) { $(id).disabled = value; });
   }
 
-  function api(path, payload) {
+  function api(path, payload, isForm) {
     var password = $("password").value;
     if (!password) return Promise.reject(new Error("비밀번호를 입력해주세요."));
+    var headers = { "Authorization": "Bearer " + encodeURIComponent(password) };
+    if (!isForm) headers["Content-Type"] = "application/json";
     return fetch(path, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + encodeURIComponent(password) },
-      body: JSON.stringify(payload)
+      headers: headers,
+      body: isForm ? payload : JSON.stringify(payload)
     }).then(function (res) {
       return res.json().catch(function () { return {}; }).then(function (data) {
         if (res.status === 401) storage("clear");
@@ -244,6 +263,73 @@ export function renderPage(nonce: string): string {
   }
 
   function field(card, name) { return card.root.querySelector('[data-field="' + name + '"]'); }
+
+  // ── 스크린샷 ─────────────────────────────────────────────
+  var IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+  var IMAGE_MAX = 5 * 1024 * 1024;
+  var pendingImages = []; // 미리보기 전에 붙인 이미지 → 첫 번째 카드로
+  var activeCard = null;
+
+  function makeImage(file) {
+    if (IMAGE_TYPES.indexOf(file.type) === -1) { showStatus("error", "PNG, JPEG, GIF, WEBP 이미지만 첨부할 수 있어요."); return null; }
+    if (file.size > IMAGE_MAX) { showStatus("error", "이미지는 5MB 이하만 첨부할 수 있어요."); return null; }
+    return { file: file, url: URL.createObjectURL(file), id: null };
+  }
+
+  function renderThumbs(container, list) {
+    container.textContent = "";
+    list.forEach(function (img, i) {
+      var wrap = document.createElement("div");
+      wrap.className = "thumb";
+      var el = document.createElement("img");
+      el.src = img.url;
+      el.alt = "스크린샷 " + (i + 1);
+      var del = document.createElement("button");
+      del.type = "button";
+      del.textContent = "✕";
+      del.setAttribute("aria-label", "스크린샷 " + (i + 1) + " 삭제");
+      del.addEventListener("click", function () {
+        URL.revokeObjectURL(img.url);
+        list.splice(i, 1);
+        renderThumbs(container, list);
+      });
+      wrap.appendChild(el);
+      wrap.appendChild(del);
+      container.appendChild(wrap);
+    });
+  }
+
+  function addFiles(files, target) {
+    Array.prototype.forEach.call(files, function (file) {
+      var img = makeImage(file);
+      if (img) target.list.push(img);
+    });
+    renderThumbs(target.container, target.list);
+  }
+
+  function cardTarget(card) { return { list: card.images, container: card.root.querySelector('[data-role="thumbs"]') }; }
+
+  function imageTarget() {
+    if (!$("reviewSection").hidden) {
+      var open = cards.filter(function (c) { return !c.done; });
+      var card = activeCard && open.indexOf(activeCard) !== -1 ? activeCard : open[0];
+      if (card) return cardTarget(card);
+    }
+    return { list: pendingImages, container: $("pendingThumbs") };
+  }
+
+  function uploadImages(card) {
+    return card.images.reduce(function (chain, img) {
+      return chain.then(function () {
+        if (img.id) return;
+        var form = new FormData();
+        form.append("file", img.file, img.file.name || "screenshot.png");
+        return api("/api/uploads", form, true).then(function (data) { img.id = data.id; });
+      });
+    }, Promise.resolve()).then(function () {
+      return card.images.map(function (img) { return img.id; });
+    });
+  }
 
   function option(value, text) {
     var el = document.createElement("option");
@@ -284,11 +370,21 @@ export function renderPage(nonce: string): string {
   function renderCards(data) {
     var issues = data.issues;
     var list = $("cards");
+    // 다시 미리보기할 때 카드에 붙어 있던 이미지는 유지한다
+    cards.forEach(function (card) { pendingImages = pendingImages.concat(card.images); });
+    renderThumbs($("pendingThumbs"), []);
     list.textContent = "";
     cards = issues.map(function (issue, i) {
       var root = $("cardTemplate").content.firstElementChild.cloneNode(true);
-      var card = { root: root, done: false, target: null, status: null };
+      var card = { root: root, done: false, target: null, status: null, images: i === 0 ? pendingImages.splice(0) : [] };
       setupMatch(card, (data.lookups || [])[i], data.statusOptions || []);
+      renderThumbs(cardTarget(card).container, card.images);
+      root.querySelector('[data-role="file"]').addEventListener("change", function (e) {
+        addFiles(e.target.files, cardTarget(card));
+        e.target.value = "";
+      });
+      root.addEventListener("focusin", function () { activeCard = card; });
+      root.addEventListener("click", function () { activeCard = card; });
       root.querySelector('[data-role="index"]').textContent = issues.length > 1 ? "이슈 " + (i + 1) + " / " + issues.length : "";
       root.querySelector('[data-role="skipWrap"]').hidden = issues.length < 2;
       root.querySelector('[data-role="skip"]').addEventListener("change", function (e) {
@@ -324,7 +420,7 @@ export function renderPage(nonce: string): string {
   function markDone(card, url, label) {
     card.done = label;
     card.root.classList.add("done");
-    card.root.querySelectorAll("input, select, textarea").forEach(function (el) { el.disabled = true; });
+    card.root.querySelectorAll("input, select, textarea, button").forEach(function (el) { el.disabled = true; });
     var result = card.root.querySelector('[data-role="result"]');
     result.hidden = false;
     result.className = "result ok";
@@ -334,11 +430,14 @@ export function renderPage(nonce: string): string {
   function send(card) {
     var issue = collect(card);
     var pageId = card.target ? card.target.value : "";
-    if (pageId) {
-      return api("/api/issues/update", { pageId: pageId, issue: issue, status: card.status.value || null })
-        .then(function (data) { markDone(card, data.url, "update"); });
-    }
-    return api("/api/issues", issue).then(function (data) { markDone(card, data.url, "create"); });
+    return uploadImages(card).then(function (imageIds) {
+      if (pageId) {
+        return api("/api/issues/update", { pageId: pageId, issue: issue, status: card.status.value || null, imageIds: imageIds })
+          .then(function (data) { markDone(card, data.url, "update"); });
+      }
+      issue.imageIds = imageIds;
+      return api("/api/issues", issue).then(function (data) { markDone(card, data.url, "create"); });
+    });
   }
 
   function markError(card, message) {
@@ -373,6 +472,11 @@ export function renderPage(nonce: string): string {
   }
 
   function reset() {
+    cards.forEach(function (card) { card.images.forEach(function (img) { URL.revokeObjectURL(img.url); }); });
+    pendingImages.forEach(function (img) { URL.revokeObjectURL(img.url); });
+    pendingImages = [];
+    renderThumbs($("pendingThumbs"), pendingImages);
+    activeCard = null;
     $("paste").value = "";
     $("cards").textContent = "";
     cards = [];
@@ -394,6 +498,19 @@ export function renderPage(nonce: string): string {
   $("useTemplate").addEventListener("click", function () { $("paste").value = $("template").textContent; $("paste").focus(); });
   $("paste").addEventListener("keydown", function (e) { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) preview(); });
   $("remember").addEventListener("change", function () { if (!$("remember").checked) storage("clear"); });
+  $("pendingFile").addEventListener("change", function (e) {
+    addFiles(e.target.files, { list: pendingImages, container: $("pendingThumbs") });
+    e.target.value = "";
+  });
+  document.addEventListener("paste", function (e) {
+    var data = e.clipboardData;
+    if (!data || !data.files) return;
+    var images = Array.prototype.filter.call(data.files, function (f) { return f.type.indexOf("image/") === 0; });
+    if (images.length === 0) return;
+    // 글자 없이 이미지만 붙여넣을 때는 입력칸에 이상한 값이 들어가지 않게 막는다
+    if (!data.getData("text/plain")) e.preventDefault();
+    addFiles(images, imageTarget());
+  });
   ($("password").value ? $("paste") : $("password")).focus();
 })();
 </script>

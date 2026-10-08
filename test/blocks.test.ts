@@ -63,3 +63,12 @@ describe("toBlocks", () => {
     expect(types("가".repeat(4500))).toEqual(["paragraph", "paragraph", "paragraph"]);
   });
 });
+
+describe("imageBlocks", () => {
+  it("file_upload id → 이미지 블록", async () => {
+    const { imageBlocks } = await import("../src/blocks");
+    expect(imageBlocks(["id-1"])).toEqual([
+      { object: "block", type: "image", image: { type: "file_upload", file_upload: { id: "id-1" } } },
+    ]);
+  });
+});

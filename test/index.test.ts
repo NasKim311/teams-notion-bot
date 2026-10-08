@@ -277,3 +277,76 @@ describe("POST /api/issues/update", () => {
     expect(((await res.json()) as { error: string }).error).toContain("권한");
   });
 });
+
+describe("POST /api/uploads", () => {
+  const UPLOAD_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+
+  function upload(file: Blob | null, name = "shot.png", password?: string | null) {
+    const form = new FormData();
+    if (file) form.append("file", file, name);
+    const headers = new Headers();
+    if (password !== null) headers.set("Authorization", `Bearer ${encodeURIComponent(password ?? env.FORM_PASSWORD)}`);
+    return new Request<unknown, IncomingRequestCfProperties>("https://bot.example/api/uploads", { method: "POST", body: form, headers });
+  }
+
+  it("Notion에 업로드하고 id를 돌려준다", async () => {
+    fetchSpy.mockImplementation(async (input) =>
+      String(input).endsWith("/send") ? Response.json({ status: "uploaded" }) : Response.json({ id: UPLOAD_ID, status: "pending" }),
+    );
+    const res = await call(upload(new Blob([new Uint8Array([137, 80, 78, 71])], { type: "image/png" })));
+    expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({ id: UPLOAD_ID });
+
+    const [createUrl, createInit] = fetchSpy.mock.calls[0]!;
+    expect(createUrl).toBe("https://api.notion.com/v1/file_uploads");
+    expect(JSON.parse(createInit?.body as string)).toEqual({ filename: "shot.png", content_type: "image/png" });
+    const [sendUrl, sendInit] = fetchSpy.mock.calls[1]!;
+    expect(sendUrl).toBe(`https://api.notion.com/v1/file_uploads/${UPLOAD_ID}/send`);
+    expect(sendInit?.body).toBeInstanceOf(FormData);
+  });
+
+  it.each<[string, () => CfRequest, string]>([
+    ["이미지가 아닌 파일", () => upload(new Blob(["x"], { type: "text/plain" }), "a.txt"), "이미지만"],
+    ["5MB 초과", () => upload(new Blob([new Uint8Array(5 * 1024 * 1024 + 1)], { type: "image/png" })), "5MB"],
+    ["파일 없음", () => upload(null), "이미지 파일"],
+    ["multipart 아님", () => post("/api/uploads", { file: "x" }), "이미지 파일"],
+  ])("%s → 400", async (_label, makeRequest, message) => {
+    const res = await call(makeRequest());
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain(message);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("비밀번호가 없으면 401", async () => {
+    expect((await call(upload(new Blob(["x"], { type: "image/png" }), "a.png", null))).status).toBe(401);
+  });
+});
+
+describe("스크린샷 첨부", () => {
+  const IMAGE_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+  const issue = { title: "화면 깨짐", type: "버그", author: "김개발", sourceUrl: null, body: "본문" };
+
+  it("새 이슈 본문 끝에 이미지 블록", async () => {
+    mockNotion();
+    expect((await call(post("/api/issues", { ...issue, imageIds: [IMAGE_ID] }))).status).toBe(201);
+    const children = JSON.parse(fetchSpy.mock.calls[0]![1]?.body as string).children;
+    expect(children.at(-1)).toEqual({
+      object: "block",
+      type: "image",
+      image: { type: "file_upload", file_upload: { id: IMAGE_ID } },
+    });
+  });
+
+  it("업데이트에도 이미지 블록", async () => {
+    mockNotion();
+    await call(post("/api/issues/update", { pageId: PAGE_ID, issue, status: null, imageIds: [IMAGE_ID] }));
+    const children = JSON.parse(fetchSpy.mock.calls[1]![1]?.body as string).children;
+    expect(children.at(-1).type).toBe("image");
+  });
+
+  it.each([[["not-an-id"]], ["x"], [Array.from({ length: 11 }, () => IMAGE_ID)]])("잘못된 imageIds %# → 400", async (imageIds) => {
+    const res = await call(post("/api/issues", { ...issue, imageIds }));
+    expect(res.status).toBe(400);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});

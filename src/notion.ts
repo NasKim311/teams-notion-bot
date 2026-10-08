@@ -1,4 +1,4 @@
-import { chunkText, type NotionBlock, toBlocks } from "./blocks";
+import { chunkText, imageBlocks, type NotionBlock, toBlocks } from "./blocks";
 import type { Env, Issue } from "./types";
 
 const NOTION_API = "https://api.notion.com/v1";
@@ -98,8 +98,13 @@ export async function appendBlocks(
 }
 
 /** Notion DB에 페이지를 생성하고 페이지 URL을 반환한다. */
-export async function createNotionPage(issue: Issue, env: NotionEnv, fetchImpl: typeof fetch = fetch): Promise<string> {
-  const blocks = toBlocks(issue.body);
+export async function createNotionPage(
+  issue: Issue,
+  env: NotionEnv,
+  fetchImpl: typeof fetch = fetch,
+  imageIds: string[] = [],
+): Promise<string> {
+  const blocks = [...toBlocks(issue.body), ...imageBlocks(imageIds)];
   const data = await notionRequest<{ id?: unknown; url?: unknown }>(
     env,
     "POST",
@@ -111,6 +116,34 @@ export async function createNotionPage(issue: Issue, env: NotionEnv, fetchImpl: 
 
   if (blocks.length > MAX_CHILDREN) await appendBlocks(env, data.id, blocks.slice(MAX_CHILDREN), fetchImpl);
   return data.url;
+}
+
+// ── 스크린샷 업로드 ───────────────────────────────────────────────────────
+
+/**
+ * Notion 파일 업로드: 업로드 객체 생성 → multipart로 파일 전송 → id 반환.
+ * 반환된 id는 1시간 안에 이미지 블록으로 붙여야 한다.
+ */
+export async function uploadImage(file: File, env: NotionEnv, fetchImpl: typeof fetch = fetch): Promise<string> {
+  const filename = file.name || "screenshot.png";
+  const created = await notionRequest<{ id?: unknown }>(
+    env,
+    "POST",
+    "/file_uploads",
+    { filename, content_type: file.type },
+    fetchImpl,
+  );
+  if (typeof created.id !== "string") throw new NotionError(200, "missing_upload_id");
+
+  const form = new FormData();
+  form.append("file", file, filename);
+  const res = await fetchImpl(`${NOTION_API}/file_uploads/${created.id}/send`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env.NOTION_TOKEN}`, "Notion-Version": NOTION_VERSION },
+    body: form,
+  });
+  if (!res.ok) throw new NotionError(res.status, await readErrorCode(res));
+  return created.id;
 }
 
 // ── 기존 이슈 찾기 / 업데이트 ────────────────────────────────────────────
@@ -230,9 +263,11 @@ export async function appendUpdate(
   env: NotionEnv,
   fetchImpl: typeof fetch = fetch,
   now: Date = new Date(),
+  imageIds: string[] = [],
 ): Promise<string> {
   const page = await notionRequest<PageObject>(env, "GET", `/pages/${pageId}`, undefined, fetchImpl);
-  await appendBlocks(env, page.id, [...updateHeading(issue, now), ...toBlocks(issue.body)], fetchImpl);
+  const blocks = [...updateHeading(issue, now), ...toBlocks(issue.body), ...imageBlocks(imageIds)];
+  await appendBlocks(env, page.id, blocks, fetchImpl);
 
   const properties = buildUpdateProperties(page, issue, status);
   if (Object.keys(properties).length > 0) {

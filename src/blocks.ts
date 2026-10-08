@@ -86,6 +86,15 @@ function authorLine(text: string): NotionBlock {
   };
 }
 
+/** Notion에 업로드한 파일(file_upload id)을 이미지 블록으로. */
+export function imageBlocks(uploadIds: string[]): NotionBlock[] {
+  return uploadIds.map((id) => ({
+    object: "block",
+    type: "image",
+    image: { type: "file_upload", file_upload: { id } },
+  }));
+}
+
 export function toBlocks(body: string): NotionBlock[] {
   const blocks: NotionBlock[] = [];
   let paragraph: string[] = [];
