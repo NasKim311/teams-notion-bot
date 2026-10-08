@@ -25,6 +25,27 @@ describe("extractWorkItem", () => {
   it("URL 안의 #은 일감 번호로 보지 않음", () => {
     expect(extractWorkItem("https://example.com/page#1234", REDMINE)).toBeNull();
   });
+
+  describe("회귀 B1: CSS 색상 코드는 일감 번호가 아님", () => {
+    it.each([
+      ["CSS 속성 값", "color: #333333;"],
+      ["세미콜론 없는 속성 값", "background: #000"],
+      ["코드 줄 안", "border: 1px solid #1234;"],
+      ["함수 인자", "box-shadow: 0 0 0 1px #999999, inset 0 0 #111111"],
+      ["# 뒤 3자리 (색상 약식)", "버튼 색 #999 확인 부탁"],
+    ])("%s: %s", (_label, text) => {
+      expect(extractWorkItem(text, REDMINE)).toBeNull();
+    });
+
+    it("색상 코드와 일감 번호가 함께 있으면 일감 번호를 고른다", () => {
+      expect(extractWorkItem("color: #333333; 은 #11661 에서 바꿀게요", REDMINE)).toBe(`${REDMINE}11661`);
+    });
+
+    it("본문 문장 속 #4~6자리와 '일감 3자리'는 그대로 인식", () => {
+      expect(extractWorkItem("#11661 작업 중", REDMINE)).toBe(`${REDMINE}11661`);
+      expect(extractWorkItem("일감 #879 확인", REDMINE)).toBe(`${REDMINE}879`);
+    });
+  });
 });
 
 describe("extractFiles", () => {

@@ -13,7 +13,12 @@ export interface DevInfo {
 
 const URL_PATTERN = /https?:\/\/[^\s<>"'\])]+/g;
 const REDMINE_URL = /https?:\/\/[^\s/]*redmine[^\s/]*\/issues\/(\d+)/i;
-const WORK_ITEM_NUMBER = /(?:일감\s*(?:번호)?\s*[:：]?\s*#?\s*|#)(\d{3,6})(?![\w])/;
+/** "일감 #879", "일감번호 8795": 키워드가 있으면 3~6자리 */
+const WORK_ITEM_KEYWORD = /일감\s*(?:번호)?\s*[:：]?\s*#?\s*(\d{3,6})(?![\w])/g;
+/** "#11661", "feature/x-#11661": "#"만 있으면 4~6자리 ("#999" 같은 색상 약식과 구분) */
+const WORK_ITEM_HASH = /#(\d{4,6})(?![\w])/g;
+/** 같은 줄에서 "#" 앞이 CSS 속성 값인지: "color: #333333", "box-shadow: 0 0 1px #999999, …" (B1) */
+const CSS_VALUE_BEFORE = /(?:^|[;{])\s*[a-z-]+\s*:[^;{}]*[\s:,(]$/i;
 const MR_URL = /https?:\/\/[^\s<>"'\])]*\/merge_requests\/\d+/;
 const BRANCH = /(?<![\w/])(?:feature|bugfix|hotfix|release|fix|refactor)\/[\w.\-#/]+/g;
 const FILE_PATH = /(?:[\w.-]+\/)*[\w.-]+\.(?:tsx?|jsx?|mjs|cjs|vue|scss|css|less|json|html)(?![\w])/g;
@@ -73,9 +78,24 @@ export function extractWorkItem(text: string, redmineIssueUrl?: string): string 
   const url = text.match(REDMINE_URL)?.[0];
   if (url) return url;
 
-  const number = text.replace(URL_PATTERN, " ").match(WORK_ITEM_NUMBER)?.[1];
+  const number = findWorkItemNumber(text.replace(URL_PATTERN, " "));
   if (!number || !redmineIssueUrl) return null;
   return `${redmineIssueUrl.replace(/\/?$/, "/")}${number}`;
+}
+
+/** 본문에서 처음 나온 일감 번호. CSS 색상 코드("#333333")는 건너뛴다. */
+function findWorkItemNumber(text: string): string | undefined {
+  const isCssValue = (index: number) => {
+    const lineStart = text.lastIndexOf("\n", index) + 1;
+    return CSS_VALUE_BEFORE.test(text.slice(lineStart, index));
+  };
+  const candidates = [
+    ...[...text.matchAll(WORK_ITEM_KEYWORD)].map((m) => ({ index: m.index, number: m[1] })),
+    ...[...text.matchAll(WORK_ITEM_HASH)]
+      .filter((m) => !isCssValue(m.index))
+      .map((m) => ({ index: m.index, number: m[1] })),
+  ];
+  return candidates.sort((a, b) => a.index - b.index)[0]?.number;
 }
 
 /** 처음 나온 FO/BO 언급. URL 안의 글자(예: ".bo.")는 보지 않는다. */
