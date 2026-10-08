@@ -11,6 +11,7 @@
 | NOTION_TOKEN | 비밀 | `.dev.vars` | `npx wrangler secret put NOTION_TOKEN` |
 | NOTION_DATABASE_ID | 비밀 | `.dev.vars` | `npx wrangler secret put NOTION_DATABASE_ID` |
 | REDMINE_ISSUE_URL | 일반 변수 | `wrangler.jsonc` vars | 배포 시 함께 올라감 |
+| PROCESSED_MESSAGES | KV 바인딩 | `wrangler dev`가 로컬 KV로 흉내 (운영 데이터와 분리) | `wrangler.jsonc`의 `kv_namespaces` (id `fc836b4e…`), 배포 시 연결 |
 
 - `.dev.vars`는 로컬에서만 쓰이고 배포되지 않는다. 운영 시크릿이 비어 있으면 모든 요청이 "비밀번호가 올바르지 않습니다"(401)로 실패한다 (실제로 있었던 장애).
 - 확인: `npx wrangler secret list` (값은 나오지 않고 이름만 나온다).

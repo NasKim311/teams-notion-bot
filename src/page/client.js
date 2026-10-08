@@ -6,6 +6,7 @@
   const fields = ["title", "type", "author", "platform", "workItemUrl", "mrUrl", "branch", "files", "areas", "body"];
   let cards = [];
   let busy = false;
+  let fingerprints = []; // 이번 미리보기 메시지들의 지문 (등록이 모두 끝나면 기록)
 
   function storage(action, value) {
     try {
@@ -259,11 +260,25 @@
       return;
     }
     setBusy(true);
-    api("/api/preview", { text: text, split: $("split").checked })
+    api("/api/preview", { text: text, split: $("split").checked, excludeProcessed: $("excludeProcessed").checked })
       .then((data) => {
+        const excluded = data.excluded || 0;
+        if (data.issues.length === 0) {
+          showStatus(
+            "error",
+            excluded
+              ? `새 메시지가 없어요. 이전에 처리한 메시지 ${excluded}개를 뺐어요. 다시 보려면 '이전에 처리한 메시지 제외'를 끄고 미리보기하세요.`
+              : "정리할 내용이 없습니다.",
+          );
+          return;
+        }
+        fingerprints = data.fingerprints || [];
         renderCards(data);
         $("splitToggle").hidden = !data.splittable;
-        if (data.lookupError) showStatus("", data.lookupError);
+        const notes = [];
+        if (excluded) notes.push(`이전에 처리한 메시지 ${excluded}개를 빼고 새 메시지만 정리했어요.`);
+        if (data.lookupError) notes.push(data.lookupError);
+        if (notes.length) showStatus("", notes.join(" "));
         else hideStatus();
         $("reviewSection").hidden = false;
         field(cards[0], "title").focus();
@@ -345,10 +360,19 @@
           ),
         Promise.resolve(),
       )
-      .then(() => {
+      // 모두 끝났을 때만 이번 메시지를 "처리함"으로 기록한다 (등록 안 함으로 둔 카드 포함). 일부만 됐으면 기록하지 않는다
+      .then(() =>
+        fingerprints.length
+          ? api("/api/processed", { fingerprints: fingerprints }).then(
+              () => "",
+              (err) => ` (처리 기록 실패: ${err.message})`,
+            )
+          : "",
+      )
+      .then((recordNote) => {
         const created = cards.filter((card) => card.done === "create").length;
         const updated = cards.filter((card) => card.done === "update").length;
-        showStatus("ok", `✅ 새 이슈 ${created}건${updated ? `, 기존 이슈 업데이트 ${updated}건` : ""}`);
+        showStatus("ok", `✅ 새 이슈 ${created}건${updated ? `, 기존 이슈 업데이트 ${updated}건` : ""}${recordNote}`);
         $("pasteSection").hidden = true;
         $("submitBtn").hidden = true;
         $("doneSection").hidden = false;
@@ -373,6 +397,7 @@
       URL.revokeObjectURL(img.url);
     });
     pendingImages = [];
+    fingerprints = [];
     renderThumbs($("pendingThumbs"), pendingImages);
     activeCard = null;
     $("paste").value = "";

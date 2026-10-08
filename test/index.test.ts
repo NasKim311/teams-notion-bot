@@ -157,6 +157,8 @@ describe("POST /api/preview", () => {
           areas: [],
         },
       ],
+      excluded: 0,
+      fingerprints: [expect.stringMatching(/^[0-9a-f]{64}$/)],
       lookups: [{ matches: [], suggestedStatus: "진행 중" }], // "브랜치명:" → 진행 중 추천
       statusOptions: ["시작 전", "진행 중", "완료"],
     });
@@ -290,6 +292,63 @@ describe("POST /api/issues/update", () => {
     const res = await call(post("/api/issues/update", { pageId: PAGE_ID, issue, status: null }));
     expect(res.status).toBe(502);
     expect(((await res.json()) as { error: string }).error).toContain("권한");
+  });
+});
+
+describe("처리한 메시지 제외", () => {
+  const thread = [
+    "홍길동(사원) - 유젠",
+    "오후 1:32",
+    "이슈 사항 : 정렬이 초기화됨",
+    "김개발(사원) - 유젠",
+    "오후 1:57",
+    "확인해 볼게요",
+  ];
+  type Preview = { issues: { title: string; author: string }[]; excluded: number; fingerprints: string[] };
+  const preview = async (text: string, extra: Record<string, unknown> = {}) =>
+    (await (await call(post("/api/preview", { text, ...extra }))).json()) as Preview;
+
+  it("기록한 메시지는 다음 미리보기에서 빠지고, 새 답글만 정리된다 (시간 표시가 달라도 같은 메시지)", async () => {
+    const first = await preview(thread.join("\n"));
+    expect(first).toMatchObject({ excluded: 0 });
+    expect(first.fingerprints).toHaveLength(2);
+
+    const record = await call(post("/api/processed", { fingerprints: first.fingerprints }));
+    expect(await record.json()).toEqual({ recorded: 2 });
+
+    // 다음 날 다시 복사하면 시간 표시가 "어제 …"로 바뀐다. 새 답글 하나가 추가됨
+    const nextDay = [...thread, "박팀장(팀장) - 유젠", "오전 9:10", "이슈 사항 : 검색 결과가 비어 있음"]
+      .join("\n")
+      .replace("오후 1:32", "어제 오후 1:32")
+      .replace("오후 1:57", "어제 오후 1:57");
+    const second = await preview(nextDay);
+    expect(second.excluded).toBe(2);
+    expect(second.fingerprints).toHaveLength(1);
+    expect(second.issues.map((issue) => [issue.title, issue.author])).toEqual([["검색 결과가 비어 있음", "박팀장"]]);
+  });
+
+  it("모두 처리한 메시지면 이슈 없이 알려주고, excludeProcessed: false면 다시 포함", async () => {
+    const first = await preview(thread.join("\n"));
+    await call(post("/api/processed", { fingerprints: first.fingerprints }));
+
+    expect(await preview(thread.join("\n"))).toMatchObject({ issues: [], excluded: 2 });
+    expect(await preview(thread.join("\n"), { excludeProcessed: false })).toMatchObject({ excluded: 0 });
+  });
+
+  it.each<[string, unknown]>([
+    ["배열 아님", { fingerprints: "abc" }],
+    ["형식 오류", { fingerprints: ["not-a-hash"] }],
+    ["500개 초과", { fingerprints: Array.from({ length: 501 }, () => "a".repeat(64)) }],
+  ])("/api/processed %s → 400", async (_label, body) => {
+    expect((await call(post("/api/processed", body))).status).toBe(400);
+  });
+
+  it("KV가 없으면 제외하지 않고 기록도 건너뛴다", async () => {
+    const noStore = { ...env, PROCESSED_MESSAGES: undefined };
+    const res = await call(post("/api/processed", { fingerprints: ["a".repeat(64)] }), noStore);
+    expect(await res.json()).toEqual({ recorded: 0 });
+    const data = (await (await call(post("/api/preview", { text: thread.join("\n") }), noStore)).json()) as Preview;
+    expect(data.excluded).toBe(0);
   });
 });
 

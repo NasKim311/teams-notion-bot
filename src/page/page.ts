@@ -86,6 +86,7 @@ ${styles}
     <div class="row">
       <button type="button" class="primary" id="previewBtn">미리보기</button>
       <span class="hint">Ctrl+Enter</span>
+      <label class="check hint"><input id="excludeProcessed" type="checkbox" checked> 이전에 처리한 메시지 제외</label>
     </div>
   </section>
 

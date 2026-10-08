@@ -1,5 +1,6 @@
 import { handleCreate, handleUpdate } from "./api/issues";
 import { handlePreview } from "./api/preview";
+import { handleProcessed } from "./api/processed";
 import { handleUpload } from "./api/uploads";
 import { isAuthorized } from "./http/auth";
 import { html, jsonError, methodNotAllowed } from "./http/response";
@@ -13,6 +14,7 @@ const API_ROUTES: Record<string, (request: Request, env: Env) => Promise<Respons
   "/api/issues": handleCreate,
   "/api/issues/update": handleUpdate,
   "/api/uploads": handleUpload,
+  "/api/processed": handleProcessed,
 };
 
 export default {

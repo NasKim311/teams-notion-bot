@@ -21,11 +21,11 @@
 ## 파일과 모듈
 - **파일 하나에 책임 하나.** 파일 첫 줄 주석에 역할을 한 줄로 적는다 (예: `// 본문 텍스트 → Notion 블록.`).
 - **300줄을 넘으면 분리를 검토한다.** (예외: `page/client.js`는 화면 코드 한 덩어리라 300줄을 넘는다.)
-- **폴더 = 기능 영역.** `api/`(API별 처리), `http/`(요청·응답 공통), `issue/`(분석, 순수), `notion/`(Notion API), `page/`(화면). 테스트는 `test/`에 같은 구조로 둔다.
+- **폴더 = 기능 영역.** `api/`(API별 처리), `http/`(요청·응답 공통), `issue/`(분석, 순수), `notion/`(Notion API), `store/`(KV 저장), `page/`(화면). 테스트는 `test/`에 같은 구조로 둔다.
 - **순수 함수와 입출력을 나눈다.**
   - 순수: `issue/` 전부, `notion/blocks.ts`, `notion/properties.ts`. 네트워크·시간·난수를 쓰지 않는다. 필요하면 인자로 받는다 (예: `now: Date`, `fetchImpl`).
   - 입출력: `notion/client·pages·uploads`(Notion 호출), `api/`(요청 처리), `index.ts`(라우팅만).
-- **import 방향:** `index` → `api`·`http`·`page` / `api` → `issue`·`notion`·`http` / `notion` → `issue`(structure·text·sections). `issue/`는 `notion`·`api`·`http`를 import하면 안 된다. 같은 폴더 안에서는 `parse` → 나머지, `text`는 아무것도 import하지 않는 바닥 모듈.
+- **import 방향:** `index` → `api`·`http`·`page` / `api` → `issue`·`notion`·`store`·`http` / `notion` → `issue`(structure·text·sections). `issue/`는 `notion`·`api`·`http`를 import하면 안 된다. 같은 폴더 안에서는 `parse` → 나머지, `text`는 아무것도 import하지 않는 바닥 모듈.
 - **Notion 컬럼 이름은 `PROP`으로만 쓴다.** 코드에 `"레드마인 링크"` 같은 문자열을 직접 쓰지 않는다.
 
 ## 이름

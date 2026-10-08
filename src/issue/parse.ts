@@ -22,15 +22,15 @@ export interface ParseOptions {
   redmineIssueUrl?: string;
 }
 
-interface Prepared {
+export interface Prepared {
   title?: string;
   author?: string;
   /** 필드 줄을 빼고 머리글을 한 줄로 정리한 본문 줄 */
   lines: string[];
 }
 
-/** 필드 줄(제목/작성자/링크)과 Teams 머리글을 처리한다. */
-function prepare(raw: string): Prepared {
+/** 필드 줄(제목/작성자/링크)과 Teams 머리글을 처리한다. (미리보기에서 처리한 메시지를 걸러낸 뒤 parsePrepared로 이어진다) */
+export function prepare(raw: string): Prepared {
   const text = normalizeText(raw);
 
   let title: string | undefined;
@@ -78,7 +78,14 @@ export function parseIssues(
   raw: string,
   options: ParseOptions & { split?: boolean } = {},
 ): { issues: Issue[]; splittable: boolean } {
-  const prepared = prepare(raw);
+  return parsePrepared(prepare(raw), options);
+}
+
+/** prepare 결과(필요하면 줄을 걸러낸 것)로 이슈를 만든다. */
+export function parsePrepared(
+  prepared: Prepared,
+  options: ParseOptions & { split?: boolean } = {},
+): { issues: Issue[]; splittable: boolean } {
   const chunks = prepared.title ? null : splitIssueLines(prepared.lines);
   if (!chunks || options.split === false) {
     return { issues: [buildIssue(prepared.lines, prepared, options)], splittable: chunks !== null };

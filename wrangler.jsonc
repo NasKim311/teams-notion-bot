@@ -6,6 +6,8 @@
   "observability": { "enabled": true },
   // 입력 화면의 스타일·브라우저 코드는 파일 내용을 문자열로 가져와 page.ts가 인라인한다
   "rules": [{ "type": "Text", "globs": ["**/*.css", "**/client.js"], "fallthrough": false }],
+  // 이미 처리(등록)한 Teams 메시지의 지문(SHA-256). 원문은 저장하지 않는다
+  "kv_namespaces": [{ "binding": "PROCESSED_MESSAGES", "id": "fc836b4ea1f84d76ab9c049348310742" }],
   // 비밀값(FORM_PASSWORD, NOTION_TOKEN, NOTION_DATABASE_ID)은
   // 로컬은 .dev.vars, 배포는 `npx wrangler secret put <NAME>`으로 설정한다.
   "vars": {
