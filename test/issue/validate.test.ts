@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateIssue } from "../src/issue";
+import { validateIssue } from "../../src/issue/validate";
 
 const valid = {
   title: "로그인 버튼 무반응",

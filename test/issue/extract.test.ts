@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractAreas, extractDevInfo, extractFiles, extractPlatform, extractWorkItem } from "../src/extract";
+import { extractAreas, extractDevInfo, extractFiles, extractPlatform, extractWorkItem } from "../../src/issue/extract";
 
 const REDMINE = "http://redmine.example.com/issues/";
 

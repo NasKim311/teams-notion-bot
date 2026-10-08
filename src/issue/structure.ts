@@ -1,5 +1,5 @@
-import { isHeaderLine, normalizeText } from "./parse";
 import { labelKey, matchSectionLabel } from "./sections";
+import { isHeaderLine, normalizeText } from "./text";
 
 // 새 이슈 본문을 고정 틀로 정리한다: 현상 → 기대 동작 → 원인 → 처리·해결 → 참고 (내용이 없어도 제목은 모두 넣음).
 //  - 팀 양식 라벨을 표준 섹션으로 모은다

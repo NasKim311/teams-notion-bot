@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isCodeLine, matchSectionLabel } from "../src/sections";
+import { isCodeLine, matchSectionLabel } from "../../src/issue/sections";
 
 describe("matchSectionLabel", () => {
   it.each([

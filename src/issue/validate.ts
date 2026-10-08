@@ -1,5 +1,5 @@
-import { UNKNOWN_AUTHOR } from "./parse";
-import { ISSUE_TYPES, type Issue, type IssueType, PLATFORMS, type Platform } from "./types";
+import { ISSUE_TYPES, type Issue, type IssueType, PLATFORMS, type Platform } from "../types";
+import { UNKNOWN_AUTHOR } from "./header";
 
 // 사용자가 미리보기에서 수정해 보낸 값을 검증한다.
 

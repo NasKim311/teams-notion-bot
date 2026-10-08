@@ -1,6 +1,6 @@
 // 본문에서 개발 정보를 뽑는다: 일감(Redmine), MR, 브랜치, 관련 파일(+줄 번호), 영역(모듈), FO/BO.
 
-import type { Platform } from "./types";
+import type { Platform } from "../types";
 
 export interface DevInfo {
   workItemUrl: string | null;

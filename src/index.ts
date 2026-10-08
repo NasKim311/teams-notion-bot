@@ -1,5 +1,7 @@
 import { isAuthorized } from "./auth";
-import { BODY_MAX, validateIssue } from "./issue";
+import { suggestStatusKind } from "./issue/classify";
+import { parseIssues } from "./issue/parse";
+import { BODY_MAX, validateIssue } from "./issue/validate";
 import {
   appendUpdate,
   createNotionPage,
@@ -11,7 +13,6 @@ import {
   uploadImage,
 } from "./notion";
 import { contentSecurityPolicy, generateNonce, renderPage } from "./page";
-import { parseIssues, suggestStatusKind } from "./parse";
 import { html, json, jsonError, methodNotAllowed } from "./response";
 import type { Env, Issue } from "./types";
 

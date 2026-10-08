@@ -4,7 +4,8 @@
 //   npm run notion:retitle -- --apply            적용 (이전 제목은 scripts/.backups/에 백업)
 //   npm run notion:retitle -- --apply --skip <페이지ID,...>   일부 페이지 제외 (사람이 직접 고친 제목 등)
 import { mkdirSync, writeFileSync } from "node:fs";
-import { parseIssues, UNTITLED } from "../src/parse";
+import { parseIssues } from "../src/issue/parse";
+import { UNTITLED } from "../src/issue/title";
 import { readOriginalBody } from "./lib/body";
 import { notion, plain, queryAllPages } from "./lib/notion";
 

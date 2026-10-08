@@ -1,5 +1,5 @@
 import { chunkText, imageBlocks, type NotionBlock, toBlocks } from "./blocks";
-import { structureBody } from "./structure";
+import { structureBody } from "./issue/structure";
 import type { Env, Issue } from "./types";
 
 const NOTION_API = "https://api.notion.com/v1";

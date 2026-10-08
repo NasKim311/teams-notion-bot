@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { toBlocks } from "../src/blocks";
-import { structureBody } from "../src/structure";
+import { toBlocks } from "../../src/blocks";
+import { structureBody } from "../../src/issue/structure";
 
 const body = (...rows: string[]) => rows.join("\n");
 

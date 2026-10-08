@@ -1,5 +1,5 @@
-import { HEADER_MARK, isHeaderLine } from "./parse";
-import { isCodeLine, matchSectionLabel } from "./sections";
+import { isCodeLine, matchSectionLabel } from "./issue/sections";
+import { HEADER_MARK, isHeaderLine } from "./issue/text";
 
 // 본문 텍스트 → Notion 블록.
 //   섹션 라벨 → 소제목(heading_3), 코드 줄 묶음 → 코드 블록, "— 이름 · 시간" → 회색 굵은 줄,
