@@ -208,7 +208,16 @@ export interface ParseOptions {
   redmineIssueUrl?: string;
 }
 
-export function parsePastedText(raw: string, options: ParseOptions = {}): Issue {
+interface Prepared {
+  title?: string;
+  author?: string;
+  sourceUrl?: string;
+  /** 필드 줄을 빼고 머리글을 한 줄로 정리한 본문 줄 */
+  lines: string[];
+}
+
+/** 필드 줄(제목/작성자/링크)과 Teams 머리글을 처리한다. */
+function prepare(raw: string): Prepared {
   const text = normalizeText(raw);
 
   let title: string | undefined;
@@ -237,15 +246,68 @@ export function parsePastedText(raw: string, options: ParseOptions = {}): Issue 
   sourceUrl ??= text.match(TEAMS_LINK)?.[0];
 
   const rewritten = rewriteHeaders(bodyLines);
-  author ??= rewritten.author;
-  const body = normalizeText(rewritten.lines.join("\n"));
+  return { title, author: author ?? rewritten.author, sourceUrl, lines: rewritten.lines };
+}
+
+function buildIssue(lines: string[], prepared: Prepared, options: ParseOptions): Issue {
+  const body = normalizeText(lines.join("\n"));
+  const { title } = prepared;
 
   return {
-    title: title ? makeTitle(title) : makeIssueTitle(rewritten.lines),
+    title: title ? makeTitle(title) : makeIssueTitle(lines),
     type: classify(`${title ?? ""}\n${body}`),
     body,
-    author: author ?? UNKNOWN_AUTHOR,
-    sourceUrl: sourceUrl ?? null,
+    author: prepared.author ?? UNKNOWN_AUTHOR,
+    sourceUrl: prepared.sourceUrl ?? null,
     ...extractDevInfo(`${title ?? ""}\n${body}`, options.redmineIssueUrl),
   };
+}
+
+const isPrimarySection = (line: string) => {
+  const section = matchSectionLabel(line);
+  return section !== null && section.number === undefined && PRIMARY_LABELS.has(labelKey(section.label));
+};
+
+/**
+ * 한 메시지에 이슈가 여러 개면 나눈다. 나눌 수 없으면 null.
+ *  - "이슈 1)", "이슈 2)" 번호 라벨: 같은 번호끼리 모은다 (나중에 달린 답글의 "이슈 1)"도 1번에 합쳐짐)
+ *  - 그 외 "[ 이슈 ]"/"이슈 사항 :" 같은 주 섹션이 2번 이상: 등장할 때마다 나눈다
+ * 첫 라벨 앞의 내용(머리글, 브랜치 등)은 공통 맥락으로 각 이슈 앞에 붙인다.
+ */
+export function splitIssueLines(lines: string[]): string[][] | null {
+  const numbered = new Map<number, string[]>();
+  const preamble: string[] = [];
+  let current: string[] | null = null;
+
+  for (const line of lines) {
+    const number = matchSectionLabel(line)?.number;
+    if (number !== undefined) {
+      current = numbered.get(number) ?? [];
+      numbered.set(number, current);
+    }
+    (current ?? preamble).push(line);
+  }
+  if (numbered.size >= 2) {
+    return [...numbered.entries()].sort(([a], [b]) => a - b).map(([, chunk]) => [...preamble, ...chunk]);
+  }
+
+  const starts = lines.flatMap((line, index) => (isPrimarySection(line) ? [index] : []));
+  if (starts.length < 2) return null;
+  const head = lines.slice(0, starts[0]);
+  return starts.map((start, i) => [...head, ...lines.slice(start, starts[i + 1] ?? lines.length)]);
+}
+
+export function parsePastedText(raw: string, options: ParseOptions = {}): Issue {
+  const prepared = prepare(raw);
+  return buildIssue(prepared.lines, prepared, options);
+}
+
+/** 여러 이슈로 나눌 수 있는지 확인하고, split이면 나눠서 돌려준다. 제목: 필드가 있으면 나누지 않는다. */
+export function parseIssues(raw: string, options: ParseOptions & { split?: boolean } = {}): { issues: Issue[]; splittable: boolean } {
+  const prepared = prepare(raw);
+  const chunks = prepared.title ? null : splitIssueLines(prepared.lines);
+  if (!chunks || options.split === false) {
+    return { issues: [buildIssue(prepared.lines, prepared, options)], splittable: chunks !== null };
+  }
+  return { issues: chunks.map((chunk) => buildIssue(chunk, prepared, options)), splittable: true };
 }

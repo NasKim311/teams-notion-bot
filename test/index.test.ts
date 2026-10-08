@@ -98,20 +98,33 @@ describe("POST /api/preview", () => {
     );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({
-      issue: {
-        title: "저장 실패",
-        type: "버그",
-        author: "홍길동",
-        sourceUrl: LINK,
-        body: "[버그] 저장 실패\n브랜치명: feature/fix-#11660\n상세",
-        workItemUrl: "http://redmine.example.com/issues/11660", // REDMINE_ISSUE_URL + 번호
-        mrUrl: null,
-        branch: "feature/fix-#11660",
-        files: "",
-        areas: [],
-      },
+      splittable: false,
+      issues: [
+        {
+          title: "저장 실패",
+          type: "버그",
+          author: "홍길동",
+          sourceUrl: LINK,
+          body: "[버그] 저장 실패\n브랜치명: feature/fix-#11660\n상세",
+          workItemUrl: "http://redmine.example.com/issues/11660", // REDMINE_ISSUE_URL + 번호
+          mrUrl: null,
+          branch: "feature/fix-#11660",
+          files: "",
+          areas: [],
+        },
+      ],
     });
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("여러 이슈는 나눠서, split: false면 하나로", async () => {
+    const text = "이슈 1)\nA 문제\n이슈 2)\nB 문제";
+    const split = (await (await call(post("/api/preview", { text }))).json()) as { issues: unknown[]; splittable: boolean };
+    expect(split).toMatchObject({ splittable: true });
+    expect(split.issues).toHaveLength(2);
+
+    const merged = (await (await call(post("/api/preview", { text, split: false }))).json()) as { issues: unknown[] };
+    expect(merged.issues).toHaveLength(1);
   });
 
   it.each([

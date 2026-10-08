@@ -8,7 +8,10 @@ const TEMPLATE = [
   "작성자: 홍길동",
   "링크: https://teams.microsoft.com/l/message/...",
   "",
-  "내용을 붙여넣으세요.",
+  "이슈 사항 : src/views/.../Page.tsx 75번째 줄",
+  "무엇이 문제인지",
+  "",
+  "기대 동작 : 어떻게 동작해야 하는지",
 ].join("\n");
 
 export function generateNonce(): string {
@@ -22,7 +25,7 @@ export function contentSecurityPolicy(nonce: string): string {
     `script-src 'nonce-${nonce}'`,
     `style-src 'nonce-${nonce}'`,
     "connect-src 'self'",
-    "img-src 'self' data:",
+    "img-src 'self' data: blob:",
     "base-uri 'none'",
     "form-action 'none'",
     "frame-ancestors 'none'",
@@ -45,30 +48,30 @@ export function renderPage(nonce: string): string {
 <style nonce="${nonce}">
   :root {
     --bg: #f6f7f9; --card: #ffffff; --text: #1d2129; --muted: #6b7280; --border: #d9dde3;
-    --accent: #2563eb; --accent-text: #ffffff; --danger: #c62828; --ok: #1b7f3b; --field: #ffffff;
+    --accent: #2563eb; --accent-text: #ffffff; --danger: #c62828; --ok: #1b7f3b; --field: #ffffff; --soft: #eef2f7;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #15171b; --card: #1e2126; --text: #e7e9ec; --muted: #9aa1ab; --border: #343841;
-      --accent: #5b8cff; --accent-text: #0b0d10; --danger: #ff6b6b; --ok: #4cc777; --field: #16181c;
+      --accent: #5b8cff; --accent-text: #0b0d10; --danger: #ff6b6b; --ok: #4cc777; --field: #16181c; --soft: #262a31;
     }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
     font: 15px/1.5 system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif; }
-  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+  main { max-width: 820px; margin: 0 auto; padding: 24px 16px 48px; }
   h1 { font-size: 22px; margin: 0 0 4px; }
   .sub { color: var(--muted); margin: 0 0 20px; }
-  section { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  section, .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
   h2 { font-size: 16px; margin: 0 0 12px; }
-  label { display: block; font-weight: 600; margin: 12px 0 4px; }
-  label:first-of-type { margin-top: 0; }
-  label.check { display: flex; align-items: center; gap: 6px; margin: 10px 0 0; font-weight: 400; }
-  label.check input { width: auto; }
+  label { display: block; font-weight: 600; margin: 12px 0 0; }
+  label > input, label > select, label > textarea { margin-top: 4px; font-weight: 400; }
   input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
     background: var(--field); color: var(--text); font: inherit; }
   textarea { resize: vertical; min-height: 120px; }
   #paste { min-height: 220px; }
+  label.check { display: flex; align-items: center; gap: 6px; font-weight: 400; }
+  label.check input { width: auto; margin: 0; }
   .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
   .grid { display: grid; grid-template-columns: 1fr 140px; gap: 0 12px; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
@@ -81,10 +84,17 @@ export function renderPage(nonce: string): string {
   details { margin-top: 10px; }
   pre { background: var(--field); border: 1px solid var(--border); border-radius: 6px; padding: 10px; overflow-x: auto;
     white-space: pre-wrap; font-size: 13px; }
+  .card-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .card-head strong { font-size: 15px; }
+  .card.skipped .fields { opacity: .4; }
+  .card.done { border-color: var(--ok); }
+  .result { margin-top: 10px; font-weight: 600; }
+  .result.ok { color: var(--ok); }
+  .result.error { color: var(--danger); }
+  .result a { color: inherit; }
   #status { margin: 0 0 16px; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); }
   #status.error { color: var(--danger); border-color: var(--danger); }
   #status.ok { color: var(--ok); border-color: var(--ok); }
-  #status a { color: inherit; font-weight: 600; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -96,19 +106,19 @@ export function renderPage(nonce: string): string {
   <div id="status" role="status" aria-live="polite" hidden></div>
 
   <section>
-    <label for="password">비밀번호</label>
-    <input id="password" type="password" autocomplete="current-password">
+    <label>비밀번호<input id="password" type="password" autocomplete="current-password"></label>
     <label class="check hint"><input id="remember" type="checkbox" checked> 이 브라우저에 기억하기</label>
   </section>
 
   <section id="pasteSection">
     <h2>1. Teams 내용 붙여넣기</h2>
-    <textarea id="paste" placeholder="Teams 메시지를 복사해 붙여넣으세요."></textarea>
+    <textarea id="paste" aria-label="붙여넣을 Teams 내용" placeholder="Teams 메시지를 복사해 붙여넣으세요. 이슈와 관련된 메시지만 골라서 붙이면 좋아요."></textarea>
     <details>
       <summary class="hint">추천 양식 보기</summary>
       <pre id="template">${escapeHtml(TEMPLATE)}</pre>
-      <p class="hint">[버그]/[개선]/[운영] 태그로 유형을 정하고, 작성자:·링크: 줄은 본문에서 빠집니다.
-        링크는 Teams 메시지 ••• → 링크 복사로 얻을 수 있어요.</p>
+      <p class="hint">이슈 사항/기대 동작/이슈 원인 같은 라벨이나 [ 이슈 ] 같은 대괄호 라벨은 Notion에서 소제목이 됩니다.
+        "이슈 1)", "이슈 2)"처럼 여러 이슈를 한 번에 붙이면 나눠서 등록할 수 있어요.
+        작성자:·링크: 줄은 본문에서 빠지고, 링크는 Teams 메시지 ••• → 링크 복사로 얻을 수 있어요.</p>
       <button type="button" id="useTemplate">양식 넣기</button>
     </details>
     <div class="row">
@@ -119,24 +129,8 @@ export function renderPage(nonce: string): string {
 
   <section id="reviewSection" hidden>
     <h2>2. 확인 후 등록</h2>
-    <div class="grid">
-      <div><label for="title">제목</label><input id="title" maxlength="200"></div>
-      <div><label for="type">유형</label><select id="type">${typeOptions}</select></div>
-    </div>
-    <label for="author">작성자</label>
-    <input id="author" maxlength="100">
-    <label for="sourceUrl">원문 링크</label>
-    <input id="sourceUrl" type="url" placeholder="https://teams.microsoft.com/l/message/...">
-    <div class="grid2">
-      <div><label for="workItemUrl">일감</label><input id="workItemUrl" type="url" placeholder="Redmine 일감 링크"></div>
-      <div><label for="mrUrl">MR</label><input id="mrUrl" type="url" placeholder="GitLab MR 링크"></div>
-      <div><label for="branch">브랜치</label><input id="branch" maxlength="2000"></div>
-      <div><label for="areas">영역</label><input id="areas" placeholder="쉼표로 구분 (예: fit, evt)"></div>
-    </div>
-    <label for="files">관련 파일</label>
-    <input id="files" maxlength="2000" placeholder="쉼표로 구분 (예: src/views/fit/pages/FitDetail.tsx:75)">
-    <label for="body">본문</label>
-    <textarea id="body" rows="10"></textarea>
+    <label class="check" id="splitToggle" hidden><input id="split" type="checkbox" checked> <span id="splitLabel">이슈별로 나눠 등록</span></label>
+    <div id="cards"></div>
     <div class="row">
       <button type="button" class="primary" id="submitBtn">Notion에 등록</button>
       <button type="button" id="backBtn">다시 붙여넣기</button>
@@ -147,17 +141,39 @@ export function renderPage(nonce: string): string {
     <button type="button" class="primary" id="newBtn">새 이슈 작성</button>
   </section>
 </main>
+
+<template id="cardTemplate">
+  <div class="card">
+    <div class="card-head">
+      <strong data-role="index"></strong>
+      <label class="check hint" data-role="skipWrap"><input type="checkbox" data-role="skip"> 이 이슈는 등록 안 함</label>
+    </div>
+    <div class="fields">
+      <div class="grid">
+        <label>제목<input data-field="title" maxlength="200"></label>
+        <label>유형<select data-field="type">${typeOptions}</select></label>
+      </div>
+      <div class="grid2">
+        <label>작성자<input data-field="author" maxlength="100"></label>
+        <label>원문 링크<input data-field="sourceUrl" type="url" placeholder="https://teams.microsoft.com/l/message/..."></label>
+        <label>일감<input data-field="workItemUrl" type="url" placeholder="Redmine 일감 링크"></label>
+        <label>MR<input data-field="mrUrl" type="url" placeholder="GitLab MR 링크"></label>
+        <label>브랜치<input data-field="branch" maxlength="2000"></label>
+        <label>영역<input data-field="areas" placeholder="쉼표로 구분 (예: fit, evt)"></label>
+      </div>
+      <label>관련 파일<input data-field="files" maxlength="2000" placeholder="쉼표로 구분 (예: src/views/fit/pages/FitDetail.tsx:75)"></label>
+      <label>본문<textarea data-field="body" rows="10"></textarea></label>
+    </div>
+    <div class="result" data-role="result" hidden></div>
+  </div>
+</template>
+
 <script nonce="${nonce}">
 (function () {
   var KEY = "issueFormPassword";
   var $ = function (id) { return document.getElementById(id); };
   var fields = ["title", "type", "author", "sourceUrl", "workItemUrl", "mrUrl", "branch", "files", "areas", "body"];
-
-  function fieldValue(issue, name) {
-    var value = issue[name];
-    if (Array.isArray(value)) return value.join(", ");
-    return value || "";
-  }
+  var cards = [];
   var busy = false;
 
   function storage(action, value) {
@@ -169,27 +185,30 @@ export function renderPage(nonce: string): string {
     return "";
   }
 
-  function showStatus(kind, text, link) {
+  function showStatus(kind, text) {
     var box = $("status");
     box.hidden = false;
     box.className = kind;
     box.textContent = text;
-    if (link && /^https:[/][/]/.test(link)) {
-      box.appendChild(document.createTextNode(" "));
-      var a = document.createElement("a");
-      a.href = link;
-      a.target = "_blank";
-      a.rel = "noopener noreferrer";
-      a.textContent = "Notion에서 열기";
-      box.appendChild(a);
-    }
   }
 
   function hideStatus() { $("status").hidden = true; }
 
+  function setLink(el, prefix, url) {
+    el.textContent = prefix + " ";
+    if (url && /^https:[/][/]/.test(url)) {
+      var a = document.createElement("a");
+      a.href = url;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = "Notion에서 열기";
+      el.appendChild(a);
+    }
+  }
+
   function setBusy(value) {
     busy = value;
-    ["previewBtn", "submitBtn", "backBtn"].forEach(function (id) { $(id).disabled = value; });
+    ["previewBtn", "submitBtn", "backBtn", "split"].forEach(function (id) { $(id).disabled = value; });
   }
 
   function api(path, payload) {
@@ -209,39 +228,101 @@ export function renderPage(nonce: string): string {
     });
   }
 
+  function fieldValue(issue, name) {
+    var value = issue[name];
+    if (Array.isArray(value)) return value.join(", ");
+    return value || "";
+  }
+
+  function field(card, name) { return card.root.querySelector('[data-field="' + name + '"]'); }
+
+  function renderCards(issues) {
+    var list = $("cards");
+    list.textContent = "";
+    cards = issues.map(function (issue, i) {
+      var root = $("cardTemplate").content.firstElementChild.cloneNode(true);
+      var card = { root: root, done: false };
+      root.querySelector('[data-role="index"]').textContent = issues.length > 1 ? "이슈 " + (i + 1) + " / " + issues.length : "";
+      root.querySelector('[data-role="skipWrap"]').hidden = issues.length < 2;
+      root.querySelector('[data-role="skip"]').addEventListener("change", function (e) {
+        root.classList.toggle("skipped", e.target.checked);
+      });
+      fields.forEach(function (name) { field(card, name).value = fieldValue(issue, name); });
+      list.appendChild(root);
+      return card;
+    });
+  }
+
   function preview() {
     if (busy) return;
     var text = $("paste").value;
     if (!text.trim()) { showStatus("error", "붙여넣은 내용이 없습니다."); return; }
     setBusy(true);
-    api("/api/preview", { text: text }).then(function (data) {
-      fields.forEach(function (name) { $(name).value = fieldValue(data.issue, name); });
+    api("/api/preview", { text: text, split: $("split").checked }).then(function (data) {
+      renderCards(data.issues);
+      $("splitToggle").hidden = !data.splittable;
       hideStatus();
       $("reviewSection").hidden = false;
-      $("title").focus();
+      field(cards[0], "title").focus();
     }).catch(function (err) { showStatus("error", err.message); })
       .finally(function () { setBusy(false); });
   }
 
+  function collect(card) {
+    var issue = {};
+    fields.forEach(function (name) { issue[name] = field(card, name).value; });
+    return issue;
+  }
+
+  function markDone(card, url) {
+    card.done = true;
+    card.root.classList.add("done");
+    card.root.querySelectorAll("input, select, textarea").forEach(function (el) { el.disabled = true; });
+    var result = card.root.querySelector('[data-role="result"]');
+    result.hidden = false;
+    result.className = "result ok";
+    setLink(result, "✅ 등록됨", url);
+  }
+
+  function markError(card, message) {
+    var result = card.root.querySelector('[data-role="result"]');
+    result.hidden = false;
+    result.className = "result error";
+    result.textContent = message;
+  }
+
   function submit() {
     if (busy) return;
-    var issue = {};
-    fields.forEach(function (name) { issue[name] = $(name).value; });
+    var pending = cards.filter(function (card) {
+      return !card.done && !card.root.querySelector('[data-role="skip"]').checked;
+    });
+    if (pending.length === 0) { showStatus("error", "등록할 이슈가 없습니다."); return; }
     setBusy(true);
-    api("/api/issues", issue).then(function (data) {
-      showStatus("ok", "✅ 등록됨: " + issue.title.trim(), data.url);
+    hideStatus();
+
+    pending.reduce(function (chain, card) {
+      return chain.then(function () {
+        return api("/api/issues", collect(card)).then(function (data) { markDone(card, data.url); },
+          function (err) { markError(card, err.message); throw err; });
+      });
+    }, Promise.resolve()).then(function () {
+      var count = cards.filter(function (card) { return card.done; }).length;
+      showStatus("ok", "✅ " + count + "건 등록됨");
       $("pasteSection").hidden = true;
-      $("reviewSection").hidden = true;
+      $("submitBtn").hidden = true;
       $("doneSection").hidden = false;
-    }).catch(function (err) { showStatus("error", err.message); })
+    }).catch(function (err) { showStatus("error", "등록 중 오류: " + err.message + " (완료된 이슈는 다시 등록되지 않아요)"); })
       .finally(function () { setBusy(false); });
   }
 
   function reset() {
     $("paste").value = "";
-    fields.forEach(function (name) { if (name !== "type") $(name).value = ""; });
+    $("cards").textContent = "";
+    cards = [];
+    $("split").checked = true;
     $("pasteSection").hidden = false;
     $("reviewSection").hidden = true;
+    $("submitBtn").hidden = false;
     $("doneSection").hidden = true;
     hideStatus();
     $("paste").focus();
@@ -252,6 +333,7 @@ export function renderPage(nonce: string): string {
   $("submitBtn").addEventListener("click", submit);
   $("backBtn").addEventListener("click", function () { $("reviewSection").hidden = true; $("paste").focus(); });
   $("newBtn").addEventListener("click", reset);
+  $("split").addEventListener("change", preview);
   $("useTemplate").addEventListener("click", function () { $("paste").value = $("template").textContent; $("paste").focus(); });
   $("paste").addEventListener("keydown", function (e) { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) preview(); });
   $("remember").addEventListener("change", function () { if (!$("remember").checked) storage("clear"); });

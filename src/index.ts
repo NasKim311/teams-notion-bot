@@ -2,7 +2,7 @@ import { isAuthorized } from "./auth";
 import { BODY_MAX, validateIssue } from "./issue";
 import { createNotionPage, NotionError, notionErrorMessage } from "./notion";
 import { contentSecurityPolicy, generateNonce, renderPage } from "./page";
-import { parsePastedText } from "./parse";
+import { parseIssues } from "./parse";
 import { html, json, jsonError, methodNotAllowed } from "./response";
 import type { Env } from "./types";
 
@@ -27,11 +27,11 @@ function logError(context: string, error: unknown): void {
 }
 
 async function handlePreview(request: Request, env: Env): Promise<Response> {
-  const data = await readJson(request);
-  const text = (data as { text?: unknown } | undefined)?.text;
+  const data = (await readJson(request)) as { text?: unknown; split?: unknown } | undefined;
+  const text = data?.text;
   if (typeof text !== "string" || text.trim() === "") return jsonError(400, "붙여넣은 내용이 없습니다.");
   if (text.length > BODY_MAX) return jsonError(400, "내용이 너무 깁니다.");
-  return json({ issue: parsePastedText(text, { redmineIssueUrl: env.REDMINE_ISSUE_URL }) });
+  return json(parseIssues(text, { redmineIssueUrl: env.REDMINE_ISSUE_URL, split: data?.split !== false }));
 }
 
 async function handleCreate(request: Request, env: Env): Promise<Response> {

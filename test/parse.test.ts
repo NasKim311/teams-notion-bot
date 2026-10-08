@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { classify, makeIssueTitle, makeTitle, matchHeaderAt, normalizeText, parsePastedText, rewriteHeaders } from "../src/parse";
+import {
+  classify,
+  makeIssueTitle,
+  makeTitle,
+  matchHeaderAt,
+  normalizeText,
+  parseIssues,
+  parsePastedText,
+  rewriteHeaders,
+  splitIssueLines,
+} from "../src/parse";
 
 const NBSP = String.fromCharCode(0xa0);
 const LINK =
@@ -242,5 +252,62 @@ describe("makeTitle / normalizeText", () => {
 
   it("연속 빈 줄은 하나로", () => {
     expect(normalizeText("a\n\n\n\nb")).toBe("a\n\nb");
+  });
+});
+
+describe("splitIssueLines / parseIssues", () => {
+  it("번호 라벨: 같은 번호끼리 모으고 앞부분은 공통 맥락", () => {
+    const text = [
+      "김개발(담당) - 회사",
+      "2026-09-30 오후 1:25",
+      "이슈 1)",
+      "BO 쿠폰 아이콘 없음",
+      "이슈 2)",
+      "미리보기에 빈 항목 출력",
+      "박팀장(담당) - 회사",
+      "2026-09-30 오후 2:15",
+      "티켓 생성했습니다.",
+      "이슈 1)",
+      "http://redmine.example.com/issues/12351",
+      "이슈 2)",
+      "http://redmine.example.com/issues/12352",
+    ].join("\n");
+
+    const { issues, splittable } = parseIssues(text);
+    expect(splittable).toBe(true);
+    expect(issues.map((i) => i.title)).toEqual(["BO 쿠폰 아이콘 없음", "미리보기에 빈 항목 출력"]);
+    expect(issues.map((i) => i.workItemUrl)).toEqual([
+      "http://redmine.example.com/issues/12351",
+      "http://redmine.example.com/issues/12352",
+    ]);
+    expect(issues.every((i) => i.author === "김개발(담당) - 회사")).toBe(true);
+    expect(issues[0]!.body.startsWith("— 김개발(담당) - 회사 · 2026-09-30 오후 1:25")).toBe(true);
+  });
+
+  it("[ 이슈 ] 주 섹션이 반복되면 등장할 때마다 나눈다", () => {
+    const text = ["feature/multi_rt", "", "[ 이슈 ]", "첫 번째 문제", "[ 개선 ]", "고침", "", "[ 이슈 ]", "두 번째 문제"].join("\n");
+    const { issues } = parseIssues(text);
+    expect(issues.map((i) => i.title)).toEqual(["첫 번째 문제", "두 번째 문제"]);
+    expect(issues.every((i) => i.branch === "feature/multi_rt")).toBe(true);
+    expect(issues[0]!.body).toContain("고침");
+    expect(issues[1]!.body).not.toContain("고침");
+  });
+
+  it("split: false면 하나로", () => {
+    const text = "이슈 1)\nA 문제\n이슈 2)\nB 문제";
+    expect(parseIssues(text, { split: false })).toMatchObject({ splittable: true, issues: [{ title: "A 문제" }] });
+  });
+
+  it("나눌 수 없으면 하나, splittable false", () => {
+    expect(parseIssues("이슈 사항 : 하나뿐\n기대 동작 : 정상")).toMatchObject({ splittable: false, issues: [{ title: "하나뿐" }] });
+    expect(splitIssueLines(["이슈 1)", "하나만 번호"])).toBeNull();
+  });
+
+  it("제목: 필드가 있으면 나누지 않는다", () => {
+    expect(parseIssues("제목: 묶음 이슈\n이슈 1)\nA\n이슈 2)\nB")).toMatchObject({ splittable: false, issues: [{ title: "묶음 이슈" }] });
+  });
+
+  it("'이슈 1)은 ...' 같은 문장은 라벨로 보지 않는다", () => {
+    expect(splitIssueLines(["이슈 1)은 디자인 요청하겠습니다.", "이슈 2)는 수정 부탁드려요."])).toBeNull();
   });
 });
