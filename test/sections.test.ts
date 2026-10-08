@@ -53,6 +53,7 @@ describe("isCodeLine", () => {
     "}",
     "state: {},",
     "backContext.backHistory[key] = {",
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: 코드 조각을 그대로 담은 테스트 데이터
     "// console.log(`init: ${key}`);",
     "return value;",
   ])("코드: %s", (line) => {

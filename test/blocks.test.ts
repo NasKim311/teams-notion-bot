@@ -11,8 +11,8 @@ describe("chunkText", () => {
   });
 
   it("서로게이트 쌍을 쪼개지 않는다", () => {
-    const chunks = chunkText("a" + "🐛".repeat(1000)); // UTF-16 길이 2001
-    expect(chunks).toEqual(["a" + "🐛".repeat(999), "🐛"]);
+    const chunks = chunkText(`a${"🐛".repeat(1000)}`); // UTF-16 길이 2001
+    expect(chunks).toEqual([`a${"🐛".repeat(999)}`, "🐛"]);
   });
 });
 

@@ -34,8 +34,8 @@ export function contentSecurityPolicy(nonce: string): string {
   ].join("; ");
 }
 
-const escapeHtml = (text: string) =>
-  text.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]!);
+const HTML_ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch] ?? ch);
 
 export function renderPage(nonce: string): string {
   const typeOptions = ISSUE_TYPES.map((t) => `<option value="${t}">${t}</option>`).join("");

@@ -44,20 +44,20 @@ const LONE_DEV_LINE =
   /^(?:(?:feature|bugfix|hotfix|release|fix|refactor)\/[\w.\-#/]+|https?:\/\/\S*(?:\/merge_requests\/\d+|redmine\S*\/issues\/\d+)\S*?)[.,]?$/i;
 
 export function structureBody(body: string): string {
-  const sections = new Map<SectionId, string[]>(ORDER.map((id) => [id, []]));
+  const sections: Record<SectionId, string[]> = { symptom: [], expected: [], cause: [], fix: [], note: [] };
   let target: Target = "symptom";
   let devLabel = "";
   let seenContent = false;
 
   const push = (line: string) => {
-    if (target !== "dev" && target !== "skip") sections.get(target)!.push(line);
+    if (target !== "dev" && target !== "skip") sections[target].push(line);
   };
 
   function handleText(line: string) {
     if (LONE_DEV_LINE.test(line.trim())) return;
     if (target === "dev") {
       // 브랜치/MR 라벨 아래의 다른 설명은 참고로 옮긴다
-      sections.get("note")!.push("", `▸ ${devLabel}`);
+      sections.note.push("", `▸ ${devLabel}`);
       target = "note";
     }
     push(line);
@@ -83,11 +83,15 @@ export function structureBody(body: string): string {
       } else if (DEV_LABELS.has(key)) {
         target = "dev";
         devLabel = section.label;
-      } else if (MAIN_LABELS.has(key)) {
-        target = MAIN_LABELS.get(key)!;
       } else {
-        target = SUB_LABELS.get(key) ?? "note";
-        sections.get(target)!.push("", `▸ ${section.label}`);
+        const main = MAIN_LABELS.get(key);
+        if (main) {
+          target = main;
+        } else {
+          const sub = SUB_LABELS.get(key) ?? "note";
+          sections[sub].push("", `▸ ${section.label}`);
+          target = sub;
+        }
       }
       if (section.rest) handleText(section.rest);
       continue;
@@ -100,7 +104,7 @@ export function structureBody(body: string): string {
   // 내용이 없어도 섹션 제목은 모두 넣는다 (나중에 Notion에서 채울 수 있도록)
   const out: string[] = [];
   for (const id of ORDER) {
-    const text = sections.get(id)!.join("\n").trim();
+    const text = sections[id].join("\n").trim();
     out.push(`[ ${SECTION_TITLES[id]} ]`, ...(text ? [text] : []), "");
   }
   return normalizeText(out.join("\n"));

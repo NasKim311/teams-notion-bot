@@ -92,6 +92,6 @@ export function isCodeLine(line: string): boolean {
   if (/^[}\])]+[;,)]*$/.test(text)) return true; // 닫는 괄호만 있는 줄
   if (/[{;]$/.test(text)) return true;
   if (/^[\w$.]+\s*:\s*[{[]/.test(text)) return true; // 객체 속성: state: {
-  if (/^[\w$.[\]'"]+\s*=\s*.+;?$/.test(text) && /[(){}\[\];]/.test(text)) return true;
+  if (/^[\w$.[\]'"]+\s*=\s*.+;?$/.test(text) && /[(){}[\];]/.test(text)) return true;
   return false;
 }

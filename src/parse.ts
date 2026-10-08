@@ -241,11 +241,15 @@ const META_SENTENCE = /올려\s*봅니다|공유\s*드|전달\s*드|확인\s*부
 const URL_TEXT = /https?:\/\/\S+/g;
 const BRANCH_TEXT = /(?<![\w/])(?:feature|bugfix|hotfix|release|fix|refactor)\/[\w.\-#/]+/g;
 
+/** 문장 경계: 마침표 등 뒤 공백, "->"/"=>"/"→", "**" */
+const SENTENCE_BREAK = /(?<=[.!?])\s+|\s*(?:->|=>|→)\s*|\s*\*\*\s*/;
+/** 나열 경계: "캐싱하지 않음/ 쓰로틀링 …"의 "/ " (경로의 "/"는 뒤에 공백이 없어 해당 안 됨) */
+const LIST_BREAK = /\s*\/\s+/;
+
 /** 요약 문장을 제목답게 다듬는다: 첫 문장·첫 항목만, 괄호 부연·군더더기 제거, 명사형 끝맺음. */
 export function polishSummary(text: string): string {
-  let s = text
-    .split(/(?<=[.!?])\s+|\s*(?:->|=>|→)\s*|\s*\*\*\s*/)[0]!
-    .split(/\s*\/\s+/)[0]!
+  const firstSentence = text.split(SENTENCE_BREAK)[0] ?? "";
+  let s = (firstSentence.split(LIST_BREAK)[0] ?? "")
     .replace(/\s*\([^()]*\)/g, "")
     .replace(/(?:^|(?<=\s))\/(?:[\w-]+\/)*([\w-]+)\s*(?=페이지)/g, "$1 ") // "/fit/fits 페이지" → "fits 페이지"
     .replace(/(화면|페이지|UI|영역|부분|탭|팝업|모달|버튼|컴포넌트)\s?인데\s+/g, "$1에서 ") // "미리보기 화면인데 …" → "미리보기 화면에서 …"
