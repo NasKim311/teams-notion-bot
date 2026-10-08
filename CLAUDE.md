@@ -9,7 +9,15 @@ Teams 아웃고잉 웹후크는 그룹 채팅을 지원하지 않아 사용하�
 - 개발 환경: Windows / PowerShell
 
 ## 흐름
-GET / 입력 화면 → 붙여넣기 → POST /api/preview (제목/유형/작성자/원문 링크 추출) → 사용자 확인·수정 → POST /api/issues → Notion 페이지 생성
+GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → 이슈 카드 확인·수정 → POST /api/uploads(이미지) → POST /api/issues(새 이슈) 또는 POST /api/issues/update(기존 이슈에 추가)
+
+- preview: 팀 양식 섹션(이슈 사항/기대 동작/[ 이슈 ]/이슈 N) 인식, 여러 이슈 나누기, 개발 정보(일감/MR/브랜치/관련 파일/영역) 추출, 같은 일감·원문 링크의 기존 페이지 조회
+- 모듈: parse(텍스트→Issue) / sections(라벨·코드 줄) / extract(개발 정보) / blocks(본문→Notion 블록) / notion(API) / issue(검증) / page(화면)
+
+## Notion DB (이슈 트래커)
+- 봇이 쓰는 컬럼: 제목(title), 유형(select), 작성자(text), 원문 링크(url), 일감(url), MR(url), 브랜치(text), 관련 파일(text), 영역(multi_select), 상태(status, 업데이트 시)
+- 연결(teams-notion-bot) 기능: 콘텐츠 읽기·업데이트·삽입 필요
+- REDMINE_ISSUE_URL(vars): "#11661" → 일감 링크 변환
 
 ## 규칙
 - 비밀값은 env로만 접근: FORM_PASSWORD, NOTION_TOKEN, NOTION_DATABASE_ID. 코드/로그 출력 금지
