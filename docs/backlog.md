@@ -63,7 +63,7 @@
 
 ### ⚪ I10. 원격 저장소 백업
 - **상태:** 열림
-- **근거:** GitHub(`origin`)에 아직 push하지 않아 이 PC가 유일한 사본이다.
+- **근거:** GitHub(`origin`)에 아직 push하지 않아 이 PC가 유일한 사본이다. 올릴 때는 배포 태그도 함께 (`git push origin main --follow-tags`).
 
 ### 🟡 I11. 같은 일감인데 레드마인 링크 표기가 다르면 기존 이슈를 못 찾음
 - **상태:** 열림 · 발견 2026-10-08 · 위치 `src/issue/extract.ts` (`extractWorkItem`), `src/notion/pages.ts` (`findExistingPages`)

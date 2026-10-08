@@ -44,7 +44,8 @@ GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → �
 
 ## 문서
 - [docs/notion.md](docs/notion.md): DB 컬럼, 누가 채우는지, 연결 권한, 싱크 절차, 직접 다듬은 제목 목록
-- [docs/operations.md](docs/operations.md): 운영 주소, 시크릿, 배포·로그
+- [docs/operations.md](docs/operations.md): 운영 주소, 시크릿, 배포·되돌리기·로그
+- [docs/deployments.md](docs/deployments.md): 운영 배포 기록 (`npm run deploy`가 자동 추가, 직접 고치지 않음)
 - [docs/gotchas.md](docs/gotchas.md): 겪었던 함정 (compatibility_date, Windows 프로세스, NBSP, 이스케이프 치환 등)
 - [docs/conventions.md](docs/conventions.md): 코드 컨벤션 (위에서 불러옴)
 - [docs/backlog.md](docs/backlog.md): 버그·개선 목록 (B=버그, I=개선, 상태·우선순위·해결 커밋). 작업 전에 관련 항목을 확인하고, 커밋 메시지에 번호를 넣는다 (예: `fix(B1): …`)
@@ -58,6 +59,7 @@ GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → �
 
 ## 명령어
 - npm run dev / npm test / npm run typecheck / npx wrangler tail
+- npm run deploy (운영 배포 + 태그·기록. 사용자가 지시할 때만, `npx wrangler deploy` 직접 사용 금지)
 - npm run notion:schema (DB 스키마 ↔ 코드 비교, 읽기 전용)
 - npm run notion:retitle [-- --apply --skip <ID,...>] (기존 제목 재생성, 기본은 미리보기)
 - npm run notion:restructure [-- --apply --skip <ID,...>] (기존 본문 재작성, 기본은 미리보기)

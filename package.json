@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "tsx scripts/deploy.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p scripts",
     "notion:schema": "tsx scripts/notion-schema.ts",

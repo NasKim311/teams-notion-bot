@@ -144,7 +144,7 @@ copy .dev.vars.example .dev.vars   # FORM_PASSWORD, NOTION_TOKEN, NOTION_DATABAS
 | `npm test` | 테스트 |
 | `npm run typecheck` | 타입 검사 (Worker 코드 + 스크립트) |
 | `npm run lint` / `npm run format` | Biome 검사 / 자동 정리 (컨벤션: [docs/conventions.md](docs/conventions.md)) |
-| `npx wrangler deploy` | 운영 배포 (운영 비밀값은 `npx wrangler secret put <이름>`) |
+| `npm run deploy` | 운영 배포: 검사 → 배포 → 버전 태그·[배포 기록](docs/deployments.md) (운영 비밀값은 `npx wrangler secret put <이름>`) |
 | `npx wrangler tail` | 운영 로그 |
 | `npm run notion:schema` | Notion DB 컬럼과 코드 비교 (읽기 전용) |
 | `npm run notion:retitle` | 기존 페이지 제목을 현재 규칙으로 재생성 (기본 미리보기, `-- --apply`) |
@@ -157,7 +157,8 @@ copy .dev.vars.example .dev.vars   # FORM_PASSWORD, NOTION_TOKEN, NOTION_DATABAS
 |---|---|
 | [docs/decisions.md](docs/decisions.md) | 주요 결정과 이유 (붙여넣기 방식, 제목·본문 규칙, AI 미사용 등) |
 | [docs/notion.md](docs/notion.md) | Notion DB 컬럼, 연결 권한, DB 변경 시 싱크 절차 |
-| [docs/operations.md](docs/operations.md) | 운영 주소, 비밀값, 배포·로그 |
+| [docs/operations.md](docs/operations.md) | 운영 주소, 비밀값, 배포·되돌리기·로그 |
+| [docs/deployments.md](docs/deployments.md) | 운영 배포 기록 (버전·커밋·바뀐 것) |
 | [docs/conventions.md](docs/conventions.md) | 코드 컨벤션 (이름·파일·주석·테스트 규칙) |
 | [docs/gotchas.md](docs/gotchas.md) | 개발하며 겪은 함정 |
 | [docs/backlog.md](docs/backlog.md) | 버그·개선 목록 (번호·상태·우선순위) |

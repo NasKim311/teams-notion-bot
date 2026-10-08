@@ -5,6 +5,8 @@
 - **Windows에서 `wrangler dev` 종료**: 백그라운드로 띄운 뒤 끄면 node/workerd 프로세스가 남아 포트(8787)를 잡고 있는다. 부모 bash PID를 찾아 `taskkill /T /F`로 프로세스 트리째 종료한다.
 - **Wrangler 텍스트 모듈 규칙 (`rules`)**: glob은 파일 경로가 아니라 **import 문자열**(`./client.js`)과 비교된다. `**/page/client.js`처럼 쓰면 맞지 않아 `.js`가 JS로 묶이고 "No matching export … default" 빌드 오류가 난다. `**/client.js`, `**/*.css`처럼 쓴다.
   - 테스트(Vitest)는 통과해도 배포 빌드에서만 깨질 수 있다. 바꾼 뒤에는 `npx wrangler deploy --dry-run --outdir <임시폴더>`로 확인한다.
+- **스크립트에서 wrangler 실행 (Windows)**: Node는 `.cmd`(npx)를 shell 없이 실행하지 못하고, shell을 쓰면 한글·공백 인자의 따옴표 처리가 까다롭다. `scripts/deploy.ts`는 `node <wrangler bin>`으로 직접 실행한다.
+  - wrangler 패키지는 `exports`로 `wrangler/bin/wrangler.js` 경로를 막는다. `wrangler/package.json`을 찾아 `bin.wrangler`로 경로를 만든다.
 - **workers.dev 첫 배포**: 서브도메인 등록과 이메일 인증이 필요하다 (사용자가 직접 한다).
 
 ## TypeScript / 테스트
