@@ -34,6 +34,8 @@ GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → �
   | 배포·시크릿·환경 변수·운영 주소 | `docs/operations.md`, `.claude/skills/deploy` |
   | 새로 겪은 함정·해결 방법 | `docs/gotchas.md` |
   | 흐름·모듈·명령어·규칙 | 이 파일 (CLAUDE.md) |
+  | 사용자에게 보이는 기능·사용법·입력 양식·설치·명령어 | `README.md` |
+  | 알려진 한계·개선 후보 (해결하면 지움) | `docs/roadmap.md` |
   | 스킬 절차에 나오는 명령·파일·함수 이름 | 해당 `.claude/skills/*/SKILL.md` |
 - **배포는 사용자가 지시할 때만** (`/deploy`). Notion 데이터 변경(페이지 수정 등)은 미리보기와 백업 먼저
 - 팀의 기존 "SSG FE 형상관리" Notion DB는 건드리지 않음
@@ -42,6 +44,8 @@ GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → �
 - [docs/notion.md](docs/notion.md): DB 컬럼, 누가 채우는지, 연결 권한, 싱크 절차, 직접 다듬은 제목 목록
 - [docs/operations.md](docs/operations.md): 운영 주소, 시크릿, 배포·로그
 - [docs/gotchas.md](docs/gotchas.md): 겪었던 함정 (compatibility_date, Windows 프로세스, NBSP, 이스케이프 치환 등)
+- [docs/roadmap.md](docs/roadmap.md): 알려진 한계와 개선 후보
+- [README.md](README.md): 사람용 소개·사용법·구조·개발 방법
 
 ## 스킬 (.claude/skills)
 - `notion-sync`: Notion DB 컬럼이 바뀌었을 때 코드 맞추기
