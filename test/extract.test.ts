@@ -62,6 +62,11 @@ describe("extractAreas", () => {
     ]);
   });
 
+  it("'fit/fitBrandSearch'처럼 모듈 이름으로 시작하는 페이지 경로", () => {
+    expect(extractAreas("fit/fitBrandSearch 의 검색창", [])).toEqual(["fit"]);
+    expect(extractAreas("and/orSomething 은 아님", [])).toEqual([]);
+  });
+
   it("모듈 경로가 없으면 빈 배열", () => {
     expect(extractAreas("일반 문장", ["src/hooks/useBack.ts"])).toEqual([]);
   });

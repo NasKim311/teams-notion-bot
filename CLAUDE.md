@@ -12,6 +12,7 @@ Teams 아웃고잉 웹후크는 그룹 채팅을 지원하지 않아 사용하�
 GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → 이슈 카드 확인·수정 → POST /api/uploads(이미지) → POST /api/issues(새 이슈) 또는 POST /api/issues/update(기존 이슈에 추가)
 
 - preview: 팀 양식 섹션(이슈 사항/기대 동작/[ 이슈 ]/이슈 N) 인식, 여러 이슈 나누기, 개발 정보(레드마인/MR 링크, 브랜치 명, 관련 파일, 영역, FO/BO) 추출, 같은 레드마인 링크의 기존 페이지 조회
+- 제목: "[영역 또는 FO/BO] 요약" — 주 섹션 첫 문장을 규칙으로 다듬음(괄호 부연·-> 뒤·추측/존댓말 어미 정리, 단어 경계 50자). AI 요약은 쓰지 않음. 제목: 필드가 있으면 그대로
 - 모듈: parse(텍스트→Issue) / sections(라벨·코드 줄) / extract(개발 정보) / blocks(본문→Notion 블록) / notion(API) / issue(검증) / page(화면)
 
 ## Notion DB (SSG 이슈 트래커)

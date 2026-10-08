@@ -8,9 +8,11 @@ import {
   parseIssues,
   parsePastedText,
   personName,
+  polishSummary,
   rewriteHeaders,
   splitIssueLines,
   suggestStatusKind,
+  withScope,
 } from "../src/parse";
 
 const NBSP = String.fromCharCode(0xa0);
@@ -67,7 +69,7 @@ describe("parsePastedText — Teams 복사 형식", () => {
       ).join("\n"),
     );
     expect(issue.author).toBe("홍길동");
-    expect(issue.title).toBe("ShopDetail.tsx: 로그인 토큰 조건문이 반대로 설정된 것으로 보임");
+    expect(issue.title).toBe("[shop] 로그인 토큰 조건문이 반대로 설정됨"); // 영역 + 다듬은 요약
     expect(issue.type).toBe("버그");
     expect(issue.body.split("\n")[0]).toBe("— 홍길동(사원) - 회사 · 오후 4:30");
   });
@@ -199,27 +201,29 @@ describe("makeIssueTitle", () => {
     [
       "이슈 사항 섹션 + 파일 경로 (다음 줄이 요약)",
       ["이슈 사항 : src/views/a/pages/ListPage.tsx 75 번째 줄", "검색결과 총 갯수가 total 이 아닌 length 로 표시됨"],
-      "ListPage.tsx: 검색결과 총 갯수가 total 이 아닌 length 로 표시됨",
+      "검색결과 총 갯수가 total이 아닌 length로 표시됨",
     ],
     [
       "파일명 한 줄 + 현상 섹션",
       ["view/evt/components/molecule/TabWrapper.tsx", "현상 : 탭 클릭 이동시 순서가 꼬이는 문제"],
-      "TabWrapper.tsx: 탭 클릭 이동시 순서가 꼬이는 문제",
+      "탭 클릭 이동시 순서가 꼬이는 문제",
     ],
     [
       "파일명 + 줄 번호 + 코드는 건너뛰고 설명",
       ["src/hooks/useBack.ts", "103~119 줄", "if (useFirst === undefined) {", "useFirst 값 분기가 중복됨"],
-      "useBack.ts: useFirst 값 분기가 중복됨",
+      "useFirst 값 분기가 중복됨",
     ],
     [
       "경로 뒤 조사 제거",
       ["src/views/brd/Map.tsx 의 PinchZoom 높이가 흔들림"],
-      "Map.tsx: PinchZoom 높이가 흔들림",
+      "PinchZoom 높이가 흔들림",
     ],
     ["대괄호 섹션", ["feature/some-branch", "", "[ 이슈 ]", "다국어 페이지 등급을 잘못 파악함"], "다국어 페이지 등급을 잘못 파악함"],
     ["번호 섹션", ["이슈 1)", "BO 쿠폰 등록 화면 아이콘 없음"], "BO 쿠폰 등록 화면 아이콘 없음"],
     ["머리글 줄은 무시", ["— 홍길동 · 오후 1:00", "그냥 첫 문장"], "그냥 첫 문장"],
-    ["=> 제안 줄은 요약에서 제외", ["이슈 사항 : Foo.tsx", "=> 이렇게 고치면 됨", "실제 문제 설명"], "Foo.tsx: 실제 문제 설명"],
+    ["=> 제안 줄은 요약에서 제외", ["이슈 사항 : Foo.tsx", "=> 이렇게 고치면 됨", "실제 문제 설명"], "실제 문제 설명"],
+    ["인사·전달 문장과 내용 없는 라벨은 건너뜀", ["프론트 이슈는 아닌것 같지만 올려봅니다..", "이슈 2 :", "쿠폰 목록이 비어 있음"], "쿠폰 목록이 비어 있음"],
+    ["브랜치·링크만 있는 줄은 건너뜀", ["브랜치명 : feature/a-#1", "Merge Request : http://g/-/merge_requests/1", "이슈 원인 :", "스크롤 보정"], "스크롤 보정"],
   ])("%s", (_label, input, expected) => {
     expect(makeIssueTitle(input)).toBe(expected);
   });
@@ -227,6 +231,39 @@ describe("makeIssueTitle", () => {
   it("요약이 없으면 파일명, 둘 다 없으면 기본 제목", () => {
     expect(makeIssueTitle(["src/a/OnlyFile.tsx"])).toBe("OnlyFile.tsx");
     expect(makeIssueTitle([])).toBe("(제목 없음)");
+  });
+});
+
+describe("polishSummary", () => {
+  it.each([
+    ["ssoToken 의 조건문이 반대로 설정된 것으로 보임", "ssoToken의 조건문이 반대로 설정됨"],
+    ["모바일에서만 흔들림 (웹에서는 재현 안됨)", "모바일에서만 흔들림"],
+    ["바코드쿠폰의 아이콘이 없음 (asset 에 없음) -> 아이콘 추가 필요", "바코드쿠폰의 아이콘이 없음"],
+    ["결과를 캐싱하지 않음/ 쓰로틀링 되지 않음", "결과를 캐싱하지 않음"],
+    ["빈 항목이 출력됩니다. 실제 등록은 문제 없습니다", "빈 항목이 출력됨"],
+    ["단순히 공통 컴포넌트로 빼는 방법이 더 나을 것 같습니다.", "공통 컴포넌트로 빼는 방법이 더 나음"],
+    ["useFirst 는 true,false,undefined 값만 가질 수 있는데 분기가 중복됨", "useFirst는 true,false,undefined 값만 가질 수 있음"],
+    ["/fit/fits 페이지 정렬 초기화", "fits 페이지 정렬 초기화"],
+    ["쿠폰 미리보기 화면인데 빈 항목 출력", "쿠폰 미리보기 화면, 빈 항목 출력"],
+    ["파라미터를 받고 있지 않아", "파라미터를 받고 있지 않음"],
+  ])("%s → %s", (input, expected) => {
+    expect(polishSummary(input)).toBe(expected);
+  });
+});
+
+describe("withScope / makeTitle", () => {
+  it("[영역] 접두어, 요약 앞의 같은 말은 뺀다", () => {
+    expect(withScope("fit", "검색창 길이 제한 없음")).toBe("[fit] 검색창 길이 제한 없음");
+    expect(withScope("BO", "BO 쿠폰 아이콘 없음")).toBe("[BO] 쿠폰 아이콘 없음");
+    expect(withScope("fit", "fit/fitBrandSearch의 검색창")).toBe("[fit] fitBrandSearch의 검색창");
+    expect(withScope(null, "요약")).toBe("요약");
+    expect(withScope("fit", "(제목 없음)")).toBe("(제목 없음)");
+  });
+
+  it("50자를 넘으면 단어 경계에서 자른다", () => {
+    const title = makeTitle("가나다 ".repeat(20));
+    expect(Array.from(title).length).toBeLessThanOrEqual(50);
+    expect(title.endsWith("가나다…")).toBe(true);
   });
 });
 
@@ -281,7 +318,7 @@ describe("splitIssueLines / parseIssues", () => {
 
     const { issues, splittable } = parseIssues(text);
     expect(splittable).toBe(true);
-    expect(issues.map((i) => i.title)).toEqual(["BO 쿠폰 아이콘 없음", "미리보기에 빈 항목 출력"]);
+    expect(issues.map((i) => i.title)).toEqual(["[BO] 쿠폰 아이콘 없음", "미리보기에 빈 항목 출력"]);
     expect(issues.map((i) => i.workItemUrl)).toEqual([
       "http://redmine.example.com/issues/12351",
       "http://redmine.example.com/issues/12352",
@@ -335,6 +372,6 @@ describe("suggestStatusKind", () => {
 describe("회귀: 말머리 대괄호", () => {
   it("이슈 사항 다음 줄의 '[테스트] ...'는 섹션이 아니라 요약으로 쓴다", () => {
     const issue = parsePastedText("이슈 사항 : src/views/e2e/pages/E2eCheck.tsx 12번째 줄\n[테스트] 자동 검증용 이슈\n기대 동작 : 정상");
-    expect(issue.title).toBe("E2eCheck.tsx: [테스트] 자동 검증용 이슈");
+    expect(issue.title).toBe("[e2e] [테스트] 자동 검증용 이슈");
   });
 });

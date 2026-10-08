@@ -22,7 +22,9 @@ const LINE_REF_ONLY = /^\s*(\d+)\s*(?:[~-]\s*(\d+))?\s*(?:번째\s*)?줄\s*$/;
 const VIEW_MODULE = /(?:^|\/)views?\/([a-z][\w-]{1,20})(?:\/|$)/i;
 // 영문자에 붙지 않은 대문자 FO/BO ("BO에서", "[BO]") 또는 한글 명칭
 const PLATFORM = /(?<![A-Za-z])(FO|BO)(?![A-Za-z])|(프론트\s*오피스)|(백\s*오피스)/;
-const ROUTE_PAGE = /(?:^|\s)\/([a-z]{2,15})\/[\w/-]*\s*페이지/;
+// "fit/fitBrandSearch": 페이지 이름이 모듈 이름으로 시작하는 경로
+const MODULE_PAGE = /(?:^|[\s(])\/?([a-z]{2,10})\/\1[A-Z]\w*/;
+const ROUTE_PAGE =/(?:^|\s)\/([a-z]{2,15})\/[\w/-]*\s*페이지/;
 
 const MAX_FILES = 10;
 const MAX_AREAS = 5;
@@ -60,7 +62,7 @@ export function extractAreas(text: string, files: string[]): string[] {
     if (module) areas.add(module.toLowerCase());
   }
   for (const line of text.split("\n")) {
-    const route = line.match(ROUTE_PAGE)?.[1];
+    const route = line.match(ROUTE_PAGE)?.[1] ?? line.match(MODULE_PAGE)?.[1];
     if (route) areas.add(route.toLowerCase());
   }
   return [...areas].slice(0, MAX_AREAS);

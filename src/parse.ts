@@ -76,13 +76,25 @@ export function suggestStatusKind(text: string): "complete" | "inProgress" | nul
   return null;
 }
 
-/** 유형 태그를 빼고 최대 50자로 자른다. */
+/** 유형 태그를 빼고 최대 50자로 자른다. 가능하면 단어 경계에서 자른다. */
 export function makeTitle(text: string): string {
   const title = text.replace(TYPE_TAG_ALL, "").replace(/\s+/g, " ").trim();
   if (title === "") return UNTITLED;
 
   const chars = Array.from(title);
-  return chars.length > TITLE_MAX ? chars.slice(0, TITLE_MAX - 1).join("") + "…" : title;
+  if (chars.length <= TITLE_MAX) return title;
+  const cut = chars.slice(0, TITLE_MAX - 1).join("");
+  const space = cut.lastIndexOf(" ");
+  return `${space >= cut.length * 0.6 ? cut.slice(0, space) : cut}…`;
+}
+
+/** "[영역] 요약". 요약이 이미 같은 말로 시작하면("BO 쿠폰 …") 그 말은 뺀다. */
+export function withScope(scope: string | null | undefined, title: string): string {
+  if (!scope || title === UNTITLED) return title;
+  const escaped = scope.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // "BO 쿠폰 …" → "쿠폰 …", "fit/fitBrandSearch …" → "fitBrandSearch …"
+  const rest = title.replace(new RegExp(`^/?${escaped}(?:\\s+|/|$)`, "i"), "").trim();
+  return makeTitle(`[${scope}] ${rest || title}`);
 }
 
 function isLikelyName(text: string): boolean {
@@ -167,9 +179,68 @@ function basename(path: string): string {
   return path.split("/").pop() ?? path;
 }
 
-/** 주 내용 줄에서 파일 경로·줄 번호를 걷어낸 요약 문장. */
+// 끝맺음 정리: 추측·존댓말 어미를 명사형으로 ("설정된 것으로 보임" → "설정됨", "출력됩니다" → "출력됨")
+const HEDGE_END = /\s*(?:것|거)\s*(?:으로\s*보\S*|같\S*)$/;
+const ADNOMINAL_END: [RegExp, string][] = [
+  [/하는$/, "함"],
+  [/되는$/, "됨"],
+  [/있는$/, "있음"],
+  [/없는$/, "없음"],
+  [/된$/, "됨"],
+  [/한$/, "함"],
+  [/나을$/, "나음"],
+  [/좋을$/, "좋음"],
+  [/할$/, "함"],
+  [/될$/, "됨"],
+];
+const POLITE_END: [RegExp, string][] = [
+  [/됩니다$|돼요$|되요$/, "됨"],
+  [/합니다$|해요$/, "함"],
+  [/있습니다$|있어요$/, "있음"],
+  [/없습니다$|없어요$/, "없음"],
+  [/않습니다$|않아요$|않아$/, "않음"],
+  [/입니다$|이에요$|예요$/, ""],
+];
+const LEADING_FILLER = /^(?:단순히|또한|그리고|현재|혹시|근데|그런데)\s+/;
+/** 제목으로 쓰지 않을 인사·전달 문장 */
+const META_SENTENCE = /올려\s*봅니다|공유\s*드|전달\s*드|확인\s*부탁|안녕하세요|감사합니다|아닌\s*것\s*같/;
+const URL_TEXT = /https?:\/\/\S+/g;
+const BRANCH_TEXT = /(?<![\w/])(?:feature|bugfix|hotfix|release|fix|refactor)\/[\w.\-#/]+/g;
+
+/** 요약 문장을 제목답게 다듬는다: 첫 문장·첫 항목만, 괄호 부연·군더더기 제거, 명사형 끝맺음. */
+export function polishSummary(text: string): string {
+  let s = text
+    .split(/(?<=[.!?])\s+|\s*(?:->|=>|→)\s*|\s*\*\*\s*/)[0]!
+    .split(/\s*\/\s+/)[0]!
+    .replace(/\s*\([^()]*\)/g, "")
+    .replace(/(?:^|(?<=\s))\/(?:[\w-]+\/)*([\w-]+)\s*(?=페이지)/g, "$1 ") // "/fit/fits 페이지" → "fits 페이지"
+    .replace(/\s?인데\s+/g, ", ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(LEADING_FILLER, "")
+    .replace(/[.!?~…]+$/, "")
+    .trim();
+
+  // "~있는데 …" 처럼 이어지는 문장은 앞 절만 ("가질 수 있는데 …" → "가질 수 있음")
+  const clause = s.match(/^(.{10,}?\S는)데\s/);
+  if (clause?.[1]) s = clause[1];
+
+  if (HEDGE_END.test(s)) s = s.replace(HEDGE_END, "");
+  const adnominal = ADNOMINAL_END.find(([pattern]) => pattern.test(s));
+  if (adnominal) s = s.replace(adnominal[0], adnominal[1]);
+  const polite = POLITE_END.find(([pattern]) => pattern.test(s));
+  if (polite) s = s.replace(polite[0], polite[1]);
+
+  // "ssoToken 의" → "ssoToken의": 영문·숫자 뒤에 띄어 쓴 조사를 붙인다
+  return s.replace(/([A-Za-z0-9)\]])\s+(의|에서|에|를|을|은|는|이|가|와|과|로|으로)(?=\s|,|$)/g, "$1$2").trim();
+}
+
+/** 주 내용 줄에서 파일 경로·줄 번호·링크·브랜치를 걷어내고 다듬은 요약 문장. */
 function summaryOf(line: string): string {
-  return line
+  if (META_SENTENCE.test(line) || /^[^:：]{1,15}[:：]$/.test(line.trim())) return ""; // 인사·전달 문장, 내용 없는 라벨
+  const stripped = line
+    .replace(URL_TEXT, " ")
+    .replace(BRANCH_TEXT, " ")
     .replace(FILE_PATH, " ")
     .replace(LINE_REF, " ")
     .replace(TYPE_TAG_ALL, " ")
@@ -177,11 +248,12 @@ function summaryOf(line: string): string {
     .trim()
     .replace(LEADING_PARTICLE, "")
     .trim();
+  return polishSummary(stripped);
 }
 
 /**
- * 제목: "파일명: 요약" (파일이 없으면 요약만).
- * 요약은 이슈 사항/이슈/현상 같은 주 섹션의 첫 문장, 없으면 본문 첫 문장에서 고른다.
+ * 제목 요약: 이슈 사항/이슈/현상 같은 주 섹션의 첫 문장, 없으면 본문 첫 문장을 다듬는다.
+ * 쓸 문장이 없으면 파일명. ("[영역] " 접두어는 buildIssue에서 붙인다)
  */
 export function makeIssueTitle(lines: string[]): string {
   const content = lines.filter((line) => line.trim() !== "" && !isHeaderLine(line));
@@ -208,9 +280,7 @@ export function makeIssueTitle(lines: string[]): string {
       })
       .find((text) => Array.from(text).length >= 2) ?? "";
 
-  const base = file ? basename(file) : "";
-  if (base && summary) return makeTitle(`${base}: ${summary}`);
-  return makeTitle(summary || base);
+  return makeTitle(summary || (file ? basename(file) : ""));
 }
 
 export interface ParseOptions {
@@ -259,13 +329,14 @@ export function personName(author: string): string {
 function buildIssue(lines: string[], prepared: Prepared, options: ParseOptions): Issue {
   const body = normalizeText(lines.join("\n"));
   const { title } = prepared;
+  const devInfo = extractDevInfo(`${title ?? ""}\n${body}`, options.redmineIssueUrl);
 
   return {
-    title: title ? makeTitle(title) : makeIssueTitle(lines),
+    title: title ? makeTitle(title) : withScope(devInfo.areas[0] ?? devInfo.platform, makeIssueTitle(lines)),
     type: classify(`${title ?? ""}\n${body}`),
     body,
     author: prepared.author ? personName(prepared.author) : UNKNOWN_AUTHOR,
-    ...extractDevInfo(`${title ?? ""}\n${body}`, options.redmineIssueUrl),
+    ...devInfo,
   };
 }
 
