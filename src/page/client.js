@@ -242,8 +242,17 @@
     });
   }
 
+  // 이미 등록한 카드가 있으면 다시 미리보기하지 않는다. 카드를 새로 만들면 완료 표시가 사라져 같은 이슈가 또 등록된다 (B3)
+  const hasDone = () => cards.some((card) => card.done);
+  const BLOCKED_MESSAGE =
+    "이미 등록한 이슈가 있어 다시 미리보기할 수 없어요. 남은 이슈를 등록하거나 '새 이슈 작성'으로 처음부터 시작하세요.";
+
   function preview() {
     if (busy) return;
+    if (hasDone()) {
+      showStatus("error", BLOCKED_MESSAGE);
+      return;
+    }
     const text = $("paste").value;
     if (!text.trim()) {
       showStatus("error", "붙여넣은 내용이 없습니다.");
@@ -346,6 +355,8 @@
       })
       .catch((err) => {
         showStatus("error", `등록 중 오류: ${err.message} (완료된 이슈는 다시 등록되지 않아요)`);
+        // 일부만 등록됐어도 처음부터 다시 시작할 수 있게 한다
+        if (hasDone()) $("doneSection").hidden = false;
       })
       .finally(() => {
         setBusy(false);
@@ -384,7 +395,14 @@
     $("paste").focus();
   });
   $("newBtn").addEventListener("click", reset);
-  $("split").addEventListener("change", preview);
+  $("split").addEventListener("change", () => {
+    if (hasDone()) {
+      $("split").checked = !$("split").checked; // 바꾼 체크를 되돌린다
+      showStatus("error", BLOCKED_MESSAGE);
+      return;
+    }
+    preview();
+  });
   $("useTemplate").addEventListener("click", () => {
     $("paste").value = $("template").textContent;
     $("paste").focus();
