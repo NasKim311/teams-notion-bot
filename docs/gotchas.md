@@ -10,6 +10,10 @@
 - **console 스파이**: `vi.spyOn(console, "error")`는 반환된 스파이 객체로 검증한다 (`console.error`를 다시 참조하면 안 맞음).
 - **scripts/ 타입체크**: `npm run typecheck`는 `src`/`test`(Workers 타입)와 `scripts`(Node 타입, `scripts/tsconfig.json`)를 따로 검사한다. src 코드는 양쪽에서 통과해야 한다. 예를 들어 Node 타입에서는 `res.json()`이 `unknown`을 반환하므로 `as`로 단언한다.
 
+## 줄 끝 (CRLF/LF)
+- 이 PC는 `core.autocrlf=true`라 체크아웃하면 CRLF가 될 수 있다. `.gitattributes`(`* text=auto eol=lf`)로 작업 폴더도 LF로 고정했다.
+  - Biome도 `lineEnding: lf`라서, 줄 끝이 섞이면 `npm run lint`가 형식 오류로 잡는다. `npm run format`으로 고친다.
+
 ## 텍스트 처리
 - **NBSP**: Teams 복사본에는 NBSP(U+00A0)가 섞여 있다. `normalizeText`가 `[^\S\n]`으로 일반 공백으로 바꾼다.
   - 코드나 테스트에 NBSP 이스케이프 문자열을 직접 쓰지 말고 `String.fromCharCode(0xa0)` 또는 `[^\S\n]`을 쓴다. 편집 도구가 이스케이프를 실제 NBSP 문자로 바꿔 버린다.

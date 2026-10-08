@@ -3,6 +3,7 @@ Teams 대화를 붙여넣으면 Notion 이슈 DB에 등록하는 Cloudflare Work
 Teams 연동(웹후크·Power Automate)은 불가능해서 쓰지 않는다. 이미 검토한 결정과 이유는 아래 결정 기록을 따른다.
 
 @docs/decisions.md
+@docs/conventions.md
 
 ## 스택
 - Cloudflare Workers, TypeScript strict, Wrangler. 런타임 의존성 없음 (devDependencies만)
@@ -24,7 +25,7 @@ GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → �
 - 입력 화면은 외부 리소스 없이 인라인 CSS/JS + nonce CSP (style 속성 금지). 사용자 입력은 textContent/value로만 렌더링
 - 파싱/검증 로직은 순수 함수로 작성, index.ts는 조립만
 - Notion 컬럼 이름·타입은 `src/notion.ts`의 `PROP`/`PROP_TYPES`에서만 관리
-- 커밋 전 `npm run typecheck && npm test` 통과 필수. 커밋은 작업 단위로
+- 커밋 전 `npm run format` 후 `npm run typecheck && npm run lint && npm test` 통과 필수. 커밋은 작업 단위로
 - **개선·버그 수정으로 동작이 바뀌면 관련 문서와 스킬도 같은 커밋에서 함께 고친다.** 코드만 바뀌고 문서·스킬이 옛 내용으로 남으면 안 된다. 커밋 전에 아래 표에서 해당 항목을 확인한다
 
   | 바뀐 것 | 함께 고칠 곳 |
@@ -34,6 +35,7 @@ GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → �
   | 배포·시크릿·환경 변수·운영 주소 | `docs/operations.md`, `.claude/skills/deploy` |
   | 새로 겪은 함정·해결 방법 | `docs/gotchas.md` |
   | 흐름·모듈·명령어·규칙 | 이 파일 (CLAUDE.md) |
+  | 코드 컨벤션·Biome 설정·예외 규칙 | `docs/conventions.md`, `biome.json` |
   | 사용자에게 보이는 기능·사용법·입력 양식·설치·명령어 | `README.md` |
   | 알려진 한계·개선 후보 (해결하면 지움) | `docs/roadmap.md` |
   | 스킬 절차에 나오는 명령·파일·함수 이름 | 해당 `.claude/skills/*/SKILL.md` |
@@ -44,6 +46,7 @@ GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → �
 - [docs/notion.md](docs/notion.md): DB 컬럼, 누가 채우는지, 연결 권한, 싱크 절차, 직접 다듬은 제목 목록
 - [docs/operations.md](docs/operations.md): 운영 주소, 시크릿, 배포·로그
 - [docs/gotchas.md](docs/gotchas.md): 겪었던 함정 (compatibility_date, Windows 프로세스, NBSP, 이스케이프 치환 등)
+- [docs/conventions.md](docs/conventions.md): 코드 컨벤션 (위에서 불러옴)
 - [docs/roadmap.md](docs/roadmap.md): 알려진 한계와 개선 후보
 - [README.md](README.md): 사람용 소개·사용법·구조·개발 방법
 

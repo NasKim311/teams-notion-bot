@@ -40,7 +40,8 @@ npm run notion:schema
 
 ## 5. 확인과 커밋
 ```
-npm run typecheck && npm test
+npm run format
+npm run typecheck && npm run lint && npm test
 npm run notion:schema   # "코드와 DB가 맞습니다."가 나와야 함
 ```
 - `CLAUDE.md`의 Notion 컬럼 줄과 `docs/notion.md`의 컬럼 표를 고친다.

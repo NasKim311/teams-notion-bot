@@ -116,6 +116,7 @@ copy .dev.vars.example .dev.vars   # FORM_PASSWORD, NOTION_TOKEN, NOTION_DATABAS
 | `npm run dev` | 로컬 실행 (http://localhost:8787) |
 | `npm test` | 테스트 |
 | `npm run typecheck` | 타입 검사 (Worker 코드 + 스크립트) |
+| `npm run lint` / `npm run format` | Biome 검사 / 자동 정리 (컨벤션: [docs/conventions.md](docs/conventions.md)) |
 | `npx wrangler deploy` | 운영 배포 (운영 비밀값은 `npx wrangler secret put <이름>`) |
 | `npx wrangler tail` | 운영 로그 |
 | `npm run notion:schema` | Notion DB 컬럼과 코드 비교 (읽기 전용) |
@@ -130,6 +131,7 @@ copy .dev.vars.example .dev.vars   # FORM_PASSWORD, NOTION_TOKEN, NOTION_DATABAS
 | [docs/decisions.md](docs/decisions.md) | 주요 결정과 이유 (붙여넣기 방식, 제목·본문 규칙, AI 미사용 등) |
 | [docs/notion.md](docs/notion.md) | Notion DB 컬럼, 연결 권한, DB 변경 시 싱크 절차 |
 | [docs/operations.md](docs/operations.md) | 운영 주소, 비밀값, 배포·로그 |
+| [docs/conventions.md](docs/conventions.md) | 코드 컨벤션 (이름·파일·주석·테스트 규칙) |
 | [docs/gotchas.md](docs/gotchas.md) | 개발하며 겪은 함정 |
 | [docs/roadmap.md](docs/roadmap.md) | 알려진 한계와 개선 후보 |
 | [CLAUDE.md](CLAUDE.md) | Claude Code 작업 규칙 (스킬: `.claude/skills/` — notion-sync, retitle, restructure, deploy) |

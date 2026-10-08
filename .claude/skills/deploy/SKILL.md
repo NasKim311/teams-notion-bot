@@ -11,7 +11,7 @@ disable-model-invocation: true
 ## 1. 배포 전 확인
 ```
 git status --short          # 커밋 안 된 변경이 있으면 사용자에게 알리고 어떻게 할지 묻는다
-npm run typecheck && npm test
+npm run typecheck && npm run lint && npm test
 npm run notion:schema       # 코드와 DB 컬럼이 맞는지 ("코드와 DB가 맞습니다.")
 ```
 - 하나라도 실패하면 배포하지 않고 결과를 그대로 보고한다.
