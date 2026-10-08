@@ -12,6 +12,8 @@ describe("matchSectionLabel", () => {
     ["[ 이슈 ]", "이슈", ""],
     ["[위치]", "위치", ""],
     ["[표시되는 내용]", "표시되는 내용", ""],
+    ["🛠 처리·해결 :", "🛠 처리·해결", ""], // 본문 고정 틀 섹션 (Notion에서 다시 읽을 때)
+    ["🐞 현상 : 흔들림", "🐞 현상", "흔들림"],
   ])("%s", (line, label, rest) => {
     expect(matchSectionLabel(line)).toEqual({ label, rest });
   });

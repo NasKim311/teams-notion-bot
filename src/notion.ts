@@ -1,4 +1,5 @@
 import { chunkText, imageBlocks, type NotionBlock, toBlocks } from "./blocks";
+import { structureBody } from "./structure";
 import type { Env, Issue } from "./types";
 
 const NOTION_API = "https://api.notion.com/v1";
@@ -69,7 +70,10 @@ export function buildProperties(issue: Issue) {
 }
 
 /** POST /v1/pages 요청 바디를 만든다 (본문 블록은 최대 100개, 나머지는 따로 이어 붙인다). */
-export function buildPageRequest(issue: Issue, databaseId: string, blocks: NotionBlock[] = toBlocks(issue.body)) {
+/** 새 이슈 본문 블록: 고정 틀로 정리한 뒤 블록으로 (업데이트는 정리하지 않음) */
+export const newIssueBlocks = (issue: Issue) => toBlocks(structureBody(issue.body));
+
+export function buildPageRequest(issue: Issue, databaseId: string, blocks: NotionBlock[] = newIssueBlocks(issue)) {
   return {
     parent: { database_id: databaseId },
     properties: buildProperties(issue),
@@ -125,7 +129,7 @@ export async function createNotionPage(
   fetchImpl: typeof fetch = fetch,
   imageIds: string[] = [],
 ): Promise<string> {
-  const blocks = [...toBlocks(issue.body), ...imageBlocks(imageIds)];
+  const blocks = [...newIssueBlocks(issue), ...imageBlocks(imageIds)];
   const data = await notionRequest<{ id?: unknown; url?: unknown }>(
     env,
     "POST",

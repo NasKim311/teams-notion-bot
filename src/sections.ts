@@ -28,6 +28,9 @@ const COLON_LABELS = [
   "브랜치명",
   "Merge Request",
   "참고",
+  // 본문 고정 틀(structure.ts)의 섹션 이름 — Notion에서 다시 읽을 때 인식
+  "처리·해결",
+  "대화 기록",
 ];
 const COLON_LABEL_KEYS = new Set(COLON_LABELS.map((label) => compact(label)));
 
@@ -47,8 +50,9 @@ export interface SectionLabel {
   number?: number;
 }
 
+/** 비교용 키: 글자·숫자만 남긴다 ("🐞 현상" → "현상", "처리·해결" → "처리해결") */
 function compact(text: string): string {
-  return text.replace(/\s+/g, "").toLowerCase();
+  return text.replace(/[^\p{L}\p{N}]/gu, "").toLowerCase();
 }
 
 export function labelKey(label: string): string {

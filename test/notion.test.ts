@@ -33,6 +33,8 @@ describe("buildPageRequest", () => {
         "FO/BO": { select: null },
       },
       children: [
+        // 새 이슈 본문은 고정 틀로 정리된다 (라벨 없는 글 → 현상)
+        { object: "block", type: "heading_3", heading_3: { rich_text: [{ type: "text", text: { content: "🐞 현상" } }] } },
         {
           object: "block",
           type: "paragraph",
@@ -94,12 +96,12 @@ describe("createNotionPage", () => {
 
     await createNotionPage({ ...issue, body }, env, fetchMock);
 
-    expect(fetchMock).toHaveBeenCalledTimes(3); // 생성 + 100 + 30
+    expect(fetchMock).toHaveBeenCalledTimes(3); // 생성(소제목 1 + 문단 99) + 100 + 31
     const [url, init] = fetchMock.mock.calls[1]!;
     expect(url).toBe("https://api.notion.com/v1/blocks/page-1/children");
     expect(init?.method).toBe("PATCH");
     expect(JSON.parse(init?.body as string).children).toHaveLength(100);
-    expect(JSON.parse(fetchMock.mock.calls[2]![1]?.body as string).children).toHaveLength(30);
+    expect(JSON.parse(fetchMock.mock.calls[2]![1]?.body as string).children).toHaveLength(31);
   });
 
   it("오류 응답이면 status/code를 담은 NotionError (토큰 미포함)", async () => {

@@ -184,6 +184,7 @@ export function renderPage(nonce: string): string {
       </div>
       <label>관련 파일<input data-field="files" maxlength="2000" placeholder="쉼표로 구분 (예: src/views/fit/pages/FitDetail.tsx:75)"></label>
       <label>본문<textarea data-field="body" rows="10"></textarea></label>
+      <div class="hint">새 이슈로 등록하면 본문이 현상 → 기대 동작 → 원인 → 처리·해결 → 참고 → 대화 기록 순서로 정리돼요. 기존 이슈에 추가할 때는 그대로 붙어요.</div>
       <div class="images">
         <div class="hint">스크린샷 (이 카드를 클릭한 뒤 Ctrl+V, 또는 파일 선택)</div>
         <div class="thumbs" data-role="thumbs"></div>
