@@ -325,3 +325,10 @@ describe("suggestStatusKind", () => {
     expect(suggestStatusKind(text)).toBe(kind);
   });
 });
+
+describe("회귀: 말머리 대괄호", () => {
+  it("이슈 사항 다음 줄의 '[테스트] ...'는 섹션이 아니라 요약으로 쓴다", () => {
+    const issue = parsePastedText("이슈 사항 : src/views/e2e/pages/E2eCheck.tsx 12번째 줄\n[테스트] 자동 검증용 이슈\n기대 동작 : 정상");
+    expect(issue.title).toBe("E2eCheck.tsx: [테스트] 자동 검증용 이슈");
+  });
+});

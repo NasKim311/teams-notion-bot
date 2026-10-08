@@ -35,7 +35,8 @@ const COLON_LABEL_KEYS = new Set(COLON_LABELS.map((label) => compact(label)));
 export const PRIMARY_LABELS = new Set(["이슈 사항", "이슈", "이슈 현상", "현상", "문제점"].map(compact));
 
 const TYPE_TAGS = new Set(["버그", "개선", "운영"]);
-const BRACKET_LINE = /^\[\s*([^\]]{1,20}?)\s*\]\s*(.*)$/;
+// 대괄호 라벨은 줄에 혼자 있을 때만 인정 ("[긴급] 결제 오류" 같은 말머리는 섹션이 아님)
+const BRACKET_LINE = /^\[\s*([^\]]{1,20}?)\s*\]$/;
 const COLON_LINE = /^([^:：]{1,15}?)\s*[:：]\s*(.*)$/;
 const NUMBERED_LINE = /^이슈\s*(\d{1,2})\s*\)(?:\s+(.*))?$/;
 
@@ -63,7 +64,7 @@ export function matchSectionLabel(line: string): SectionLabel | null {
 
   const bracket = text.match(BRACKET_LINE);
   if (bracket?.[1] && !TYPE_TAGS.has(bracket[1].trim())) {
-    return { label: bracket[1].trim(), rest: bracket[2]?.trim() ?? "" };
+    return { label: bracket[1].trim(), rest: "" };
   }
 
   const colon = text.match(COLON_LINE);

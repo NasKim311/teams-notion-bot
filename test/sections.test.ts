@@ -12,7 +12,6 @@ describe("matchSectionLabel", () => {
     ["[ 이슈 ]", "이슈", ""],
     ["[위치]", "위치", ""],
     ["[표시되는 내용]", "표시되는 내용", ""],
-    ["[ 경로 ] /src/config/api", "경로", "/src/config/api"],
   ])("%s", (line, label, rest) => {
     expect(matchSectionLabel(line)).toEqual({ label, rest });
   });
@@ -24,6 +23,8 @@ describe("matchSectionLabel", () => {
 
   it.each([
     ["[버그] 유형 태그는 섹션 아님"],
+    ["[테스트] 말머리가 붙은 문장"], // 대괄호 라벨은 줄에 혼자 있어야 함
+    ["[ 경로 ] /src/config/api"],
     ["이슈 1)은 디자인 에셋을 요청하겠습니다."], // 조사가 붙으면 라벨 아님
     ["작업 내용: 알려지지 않은 콜론 라벨"],
     ["https://example.com"],
