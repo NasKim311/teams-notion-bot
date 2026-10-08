@@ -37,6 +37,20 @@ export const PROP = {
   status: "상태",
 } as const;
 
+/** PROP 각 컬럼의 Notion 타입. DB 싱크 점검(npm run notion:schema)에서 실제 스키마와 비교한다. */
+export const PROP_TYPES: Record<keyof typeof PROP, string> = {
+  title: "title",
+  type: "select",
+  author: "select",
+  workItem: "url",
+  mr: "url",
+  branch: "rich_text",
+  files: "rich_text",
+  areas: "multi_select",
+  platform: "select",
+  status: "status",
+};
+
 const select = (name: string | null) => ({ select: name ? { name } : null });
 
 /** Issue → Notion DB 속성. 작성자·유형·FO/BO는 select라 없는 이름이면 옵션이 새로 생긴다. */
@@ -65,7 +79,7 @@ export function buildPageRequest(issue: Issue, databaseId: string, blocks: Notio
 
 async function readErrorCode(res: Response): Promise<string> {
   try {
-    const data: { code?: unknown } = await res.json();
+    const data = (await res.json()) as { code?: unknown };
     return typeof data.code === "string" ? data.code : "unknown";
   } catch {
     return "unknown";
