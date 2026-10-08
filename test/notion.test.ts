@@ -15,6 +15,12 @@ const issue: Issue = {
   areas: [],
 };
 
+const heading = (content: string) => ({
+  object: "block",
+  type: "heading_3",
+  heading_3: { rich_text: [{ type: "text", text: { content } }] },
+});
+
 const env = { NOTION_TOKEN: "secret_token_value", NOTION_DATABASE_ID: "db-123" };
 
 describe("buildPageRequest", () => {
@@ -33,13 +39,17 @@ describe("buildPageRequest", () => {
         "FO/BO": { select: null },
       },
       children: [
-        // 새 이슈 본문은 고정 틀로 정리된다 (라벨 없는 글 → 현상)
-        { object: "block", type: "heading_3", heading_3: { rich_text: [{ type: "text", text: { content: "🐞 현상" } }] } },
+        // 새 이슈 본문은 고정 틀로 정리된다 (라벨 없는 글 → 현상, 빈 섹션도 제목은 넣음)
+        heading("🐞 현상"),
         {
           object: "block",
           type: "paragraph",
           paragraph: { rich_text: [{ type: "text", text: { content: issue.body } }] },
         },
+        heading("🎯 기대 동작"),
+        heading("🔍 원인"),
+        heading("🛠 처리·해결"),
+        heading("📎 참고"),
       ],
     });
   });
@@ -96,12 +106,12 @@ describe("createNotionPage", () => {
 
     await createNotionPage({ ...issue, body }, env, fetchMock);
 
-    expect(fetchMock).toHaveBeenCalledTimes(3); // 생성(소제목 1 + 문단 99) + 100 + 31
+    expect(fetchMock).toHaveBeenCalledTimes(3); // 생성(소제목 1 + 문단 99) + 100 + 35(문단 31 + 빈 섹션 제목 4)
     const [url, init] = fetchMock.mock.calls[1]!;
     expect(url).toBe("https://api.notion.com/v1/blocks/page-1/children");
     expect(init?.method).toBe("PATCH");
     expect(JSON.parse(init?.body as string).children).toHaveLength(100);
-    expect(JSON.parse(fetchMock.mock.calls[2]![1]?.body as string).children).toHaveLength(31);
+    expect(JSON.parse(fetchMock.mock.calls[2]![1]?.body as string).children).toHaveLength(35);
   });
 
   it("오류 응답이면 status/code를 담은 NotionError (토큰 미포함)", async () => {

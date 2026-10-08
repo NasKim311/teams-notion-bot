@@ -1,8 +1,8 @@
 import { isHeaderLine, normalizeText } from "./parse";
 import { labelKey, matchSectionLabel } from "./sections";
 
-// 새 이슈 본문을 고정 틀로 정리한다: 현상 → 기대 동작 → 원인 → 처리·해결 → 참고.
-//  - 팀 양식 라벨을 표준 섹션으로 모은다 (없는 섹션은 생략)
+// 새 이슈 본문을 고정 틀로 정리한다: 현상 → 기대 동작 → 원인 → 처리·해결 → 참고 (내용이 없어도 제목은 모두 넣음).
+//  - 팀 양식 라벨을 표준 섹션으로 모은다
 //  - 첫 메시지에서 라벨 없이 쓴 글은 현상으로
 //  - Teams 머리글(작성자·시간)과 이후 답글의 라벨 없는 글(대화)은 넣지 않는다. 답글 속 라벨 글은 해당 섹션으로
 //  - 브랜치·MR·레드마인 링크만 있는 줄은 컬럼에 있으므로 뺀다
@@ -97,10 +97,11 @@ export function structureBody(body: string): string {
     handleText(line);
   }
 
+  // 내용이 없어도 섹션 제목은 모두 넣는다 (나중에 Notion에서 채울 수 있도록)
   const out: string[] = [];
   for (const id of ORDER) {
     const text = sections.get(id)!.join("\n").trim();
-    if (text !== "") out.push(`[ ${SECTION_TITLES[id]} ]`, text, "");
+    out.push(`[ ${SECTION_TITLES[id]} ]`, ...(text ? [text] : []), "");
   }
   return normalizeText(out.join("\n"));
 }

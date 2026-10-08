@@ -4,30 +4,34 @@ import { structureBody } from "../src/structure";
 
 const body = (...rows: string[]) => rows.join("\n");
 
+/** 기대 결과: 다섯 섹션 제목은 항상 있고, 내용은 있는 것만 */
+function frame(content: { symptom?: string; expected?: string; cause?: string; fix?: string; note?: string }): string {
+  const sections: [string, string | undefined][] = [
+    ["🐞 현상", content.symptom],
+    ["🎯 기대 동작", content.expected],
+    ["🔍 원인", content.cause],
+    ["🛠 처리·해결", content.fix],
+    ["📎 참고", content.note],
+  ];
+  return sections.map(([title, text]) => (text ? `[ ${title} ]\n${text}` : `[ ${title} ]`)).join("\n\n");
+}
+
 describe("structureBody", () => {
   it("팀 라벨을 표준 섹션 순서로 모은다 (현상 → 기대 동작 → 원인 → 처리·해결)", () => {
     const result = structureBody(
       body("처리 상황 : 전달 완료", "", "이슈 원인 : 조건문 반대", "", "기대 동작 : 에러 Alert", "", "이슈 사항 : 로그인 안 됨"),
     );
-    expect(result).toBe(
-      body(
-        "[ 🐞 현상 ]",
-        "로그인 안 됨",
-        "",
-        "[ 🎯 기대 동작 ]",
-        "에러 Alert",
-        "",
-        "[ 🔍 원인 ]",
-        "조건문 반대",
-        "",
-        "[ 🛠 처리·해결 ]",
-        "전달 완료",
-      ),
-    );
+    expect(result).toBe(frame({ symptom: "로그인 안 됨", expected: "에러 Alert", cause: "조건문 반대", fix: "전달 완료" }));
   });
 
-  it("라벨 없는 글은 현상, 없는 섹션은 생략", () => {
-    expect(structureBody("화면이 깨져요\n새로고침하면 정상")).toBe("[ 🐞 현상 ]\n화면이 깨져요\n새로고침하면 정상");
+  it("내용이 없는 섹션도 제목은 넣는다", () => {
+    expect(structureBody("화면이 깨져요\n새로고침하면 정상")).toBe(frame({ symptom: "화면이 깨져요\n새로고침하면 정상" }));
+    const blocks = toBlocks(structureBody("화면이 깨져요"));
+    expect(blocks.map((b) => b.type)).toEqual(["heading_3", "paragraph", "heading_3", "heading_3", "heading_3", "heading_3"]);
+  });
+
+  it("빈 본문이면 섹션 제목만", () => {
+    expect(structureBody("")).toBe(frame({}));
   });
 
   it("머리글과 답글의 라벨 없는 대화는 넣지 않고, 답글 속 라벨은 해당 섹션으로", () => {
@@ -41,7 +45,7 @@ describe("structureBody", () => {
         "해결 방법 : 상태를 부모로 올림",
       ),
     );
-    expect(result).toBe(body("[ 🐞 현상 ]", "정렬 초기화", "", "[ 🛠 처리·해결 ]", "상태를 부모로 올림"));
+    expect(result).toBe(frame({ symptom: "정렬 초기화", fix: "상태를 부모로 올림" }));
     expect(result).not.toContain("어떻게 파악하셨나요?");
     expect(result).not.toContain("—");
   });
@@ -59,23 +63,22 @@ describe("structureBody", () => {
       ),
     );
     expect(result).toBe(
-      body("[ 🐞 현상 ]", "BO 쿠폰 아이콘 없음", "", "[ 📎 참고 ]", "▸ Merge Request", "http://gitlab.example.com/a/-/merge_requests/1 (dev 미머지)"),
+      frame({ symptom: "BO 쿠폰 아이콘 없음", note: "▸ Merge Request\nhttp://gitlab.example.com/a/-/merge_requests/1 (dev 미머지)" }),
     );
   });
 
   it("세부 라벨(경로·위치·재현)은 현상 안에 '▸ 라벨'로, 모르는 라벨은 참고로", () => {
     const result = structureBody(body("현상 : 흔들림", "재현 방법 : 모바일 접속", "[표시되는 내용]", "빈 쿠폰"));
-    expect(result).toBe(
-      body("[ 🐞 현상 ]", "흔들림", "", "▸ 재현 방법", "모바일 접속", "", "[ 📎 참고 ]", "▸ 표시되는 내용", "빈 쿠폰"),
-    );
+    expect(result).toBe(frame({ symptom: "흔들림\n\n▸ 재현 방법\n모바일 접속", note: "▸ 표시되는 내용\n빈 쿠폰" }));
   });
 
   it("코드 줄은 그대로 두어 코드 블록이 된다", () => {
     const blocks = toBlocks(structureBody(body("이슈 사항 : 분기 누락", "if (ok) {", "  run();", "}")));
-    expect(blocks.map((b) => b.type)).toEqual(["heading_3", "paragraph", "code"]);
+    expect(blocks.slice(0, 3).map((b) => b.type)).toEqual(["heading_3", "paragraph", "code"]);
   });
 
-  it("빈 본문은 빈 문자열", () => {
-    expect(structureBody("")).toBe("");
+  it("이미 틀로 정리된 본문을 다시 정리해도 같다", () => {
+    const once = structureBody(body("이슈 원인 : 조건문 반대", "기대 동작 : 에러 Alert"));
+    expect(structureBody(once)).toBe(once);
   });
 });

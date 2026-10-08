@@ -300,7 +300,9 @@ export function makeIssueTitle(lines: string[]): string {
     const rest = content.slice(start + 1);
     const end = rest.findIndex((line) => matchSectionLabel(line) !== null);
     const first = matchSectionLabel(content[start] ?? "")?.rest ?? "";
-    primary = [first, ...(end === -1 ? rest : rest.slice(0, end))].filter((line) => line !== "");
+    const section = [first, ...(end === -1 ? rest : rest.slice(0, end))].filter((line) => line !== "");
+    // 주 섹션이 비어 있으면(빈 "🐞 현상" 제목 등) 본문 전체에서 찾는다
+    if (section.length > 0) primary = section;
   }
 
   const file = [...primary, content[0] ?? ""].join("\n").match(FILE_PATH)?.[0];
