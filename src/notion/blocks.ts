@@ -43,12 +43,23 @@ function textPart(content: string, url?: string, annotations?: RichText["annotat
   }));
 }
 
+/** 호스트가 있는 http(s) 주소인지 */
+function isLinkableUrl(url: string): boolean {
+  try {
+    return new URL(url).hostname !== "";
+  } catch {
+    return false;
+  }
+}
+
 /** 텍스트를 rich_text 배열로. URL 부분은 링크가 된다. */
 export function richText(text: string, annotations?: RichText["annotations"]): RichText[] {
   const parts: RichText[] = [];
   let last = 0;
   for (const match of text.matchAll(URL_IN_TEXT)) {
     const url = match[0].replace(TRAILING_PUNCTUATION, "");
+    // 주소로 해석되지 않으면("http://..." 같은 자리표시) 링크로 만들지 않는다. Notion이 등록 전체를 거부한다 (B2)
+    if (!isLinkableUrl(url)) continue;
     const index = match.index ?? 0;
     if (index > last) parts.push(...textPart(text.slice(last, index), undefined, annotations));
     parts.push(...textPart(url, url, annotations));

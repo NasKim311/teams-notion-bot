@@ -28,6 +28,26 @@ describe("richText", () => {
     ]);
   });
 
+  describe("회귀 B2: 주소로 해석되지 않는 URL은 링크로 만들지 않음", () => {
+    it.each([
+      ["자리표시", "링크 http://... 참고"],
+      ["프로토콜만", "주소는 https:// 로 시작"],
+      ["호스트 없음", "http://:8080/path 확인"],
+    ])("%s: %s", (_label, text) => {
+      const parts = richText(text);
+      expect(parts.some((part) => part.text.link)).toBe(false);
+      expect(parts.map((part) => part.text.content).join("")).toBe(text);
+    });
+
+    it("정상 주소는 그대로 링크", () => {
+      const parts = richText("참고 https://example.com/a?b=1 와 http://localhost:8787/");
+      expect(parts.filter((part) => part.text.link).map((part) => part.text.link?.url)).toEqual([
+        "https://example.com/a?b=1",
+        "http://localhost:8787/",
+      ]);
+    });
+  });
+
   it("주석(annotations)을 모든 조각에 적용", () => {
     expect(richText("a", { bold: true })).toEqual([
       { type: "text", text: { content: "a" }, annotations: { bold: true } },
