@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildPageRequest, createNotionPage, NotionError, notionErrorMessage } from "../src/notion";
-import type { Issue } from "../src/types";
+import { NotionError } from "../../src/notion/client";
+import {
+  appendUpdate,
+  buildPageRequest,
+  createNotionPage,
+  findExistingPages,
+  getStatusOptions,
+} from "../../src/notion/pages";
+import { buildUpdateProperties } from "../../src/notion/properties";
+import type { Issue } from "../../src/types";
 
 const issue: Issue = {
   title: "로그인 버튼 무반응",
@@ -136,23 +144,6 @@ describe("createNotionPage", () => {
   });
 });
 
-describe("notionErrorMessage", () => {
-  it.each([
-    ["unauthorized", "토큰"],
-    ["restricted_resource", "권한"],
-    ["object_not_found", "찾을 수 없어요"],
-    ["validation_error", "속성"],
-    ["rate_limited", "너무 많아요"],
-    ["conflict_error", "status 409"],
-  ])("%s", (code, text) => {
-    expect(notionErrorMessage(new NotionError(code === "conflict_error" ? 409 : 400, code))).toContain(text);
-  });
-
-  it("NotionError가 아니면 일반 안내", () => {
-    expect(notionErrorMessage(new Error("x"))).toContain("잠시 후 다시 시도");
-  });
-});
-
 describe("기존 이슈 찾기/업데이트", () => {
   const STATUS_SCHEMA = {
     properties: {
@@ -205,7 +196,7 @@ describe("기존 이슈 찾기/업데이트", () => {
       },
     };
     const fetchMock = vi.fn<typeof fetch>(async () => Response.json(schema));
-    await expect((await import("../src/notion")).getStatusOptions(env, fetchMock)).resolves.toMatchObject({
+    await expect(getStatusOptions(env, fetchMock)).resolves.toMatchObject({
       inProgress: "진행 중",
       complete: "완료",
     });
@@ -213,7 +204,7 @@ describe("기존 이슈 찾기/업데이트", () => {
 
   it("getStatusOptions: 옵션 이름과 진행 중/완료 그룹의 첫 상태", async () => {
     const fetchMock = vi.fn<typeof fetch>(async () => Response.json(STATUS_SCHEMA));
-    await expect((await import("../src/notion")).getStatusOptions(env, fetchMock)).resolves.toEqual({
+    await expect(getStatusOptions(env, fetchMock)).resolves.toEqual({
       names: ["시작 전", "진행 중", "완료"],
       inProgress: "진행 중",
       complete: "완료",
@@ -222,7 +213,6 @@ describe("기존 이슈 찾기/업데이트", () => {
   });
 
   it("findExistingPages: 레드마인 링크로 조회", async () => {
-    const { findExistingPages } = await import("../src/notion");
     const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ results: [page()] }));
 
     const found = await findExistingPages({ workItemUrl: "http://r/issues/1" }, env, fetchMock);
@@ -243,14 +233,12 @@ describe("기존 이슈 찾기/업데이트", () => {
   });
 
   it("findExistingPages: 찾을 단서가 없으면 호출하지 않음", async () => {
-    const { findExistingPages } = await import("../src/notion");
     const fetchMock = vi.fn<typeof fetch>();
     await expect(findExistingPages({ workItemUrl: null }, env, fetchMock)).resolves.toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("buildUpdateProperties: 상태 변경, 빈 레드마인 링크·FO/BO만 채우고 MR은 유지, 목록은 합침", async () => {
-    const { buildUpdateProperties } = await import("../src/notion");
     const update = buildUpdateProperties(
       page(),
       {
@@ -275,7 +263,6 @@ describe("기존 이슈 찾기/업데이트", () => {
   });
 
   it("buildUpdateProperties: 바뀔 게 없으면 빈 객체, DB에 없는 컬럼은 건드리지 않음", async () => {
-    const { buildUpdateProperties } = await import("../src/notion");
     expect(buildUpdateProperties(page(), { ...issue, branch: "feature/a" }, null)).toEqual({});
     const withPlatform = page({ "FO/BO": { type: "select", select: { name: "BO" } } });
     expect(buildUpdateProperties(withPlatform, { ...issue, platform: "FO" }, null)).toEqual({}); // 이미 있으면 유지
@@ -289,7 +276,6 @@ describe("기존 이슈 찾기/업데이트", () => {
   });
 
   it("appendUpdate: 페이지 조회 → 구분선·업데이트 제목·본문 추가 → 속성 갱신", async () => {
-    const { appendUpdate } = await import("../src/notion");
     const fetchMock = vi.fn<typeof fetch>(async (input) =>
       String(input).endsWith("/children") ? Response.json({}) : Response.json(page()),
     );

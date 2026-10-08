@@ -5,8 +5,8 @@
 //   npm run notion:restructure -- --apply            적용 (원본 블록은 scripts/.backups/에 백업)
 //   npm run notion:restructure -- --apply --skip <페이지ID,...>
 import { mkdirSync, writeFileSync } from "node:fs";
-import { toBlocks } from "../src/blocks";
 import { structureBody } from "../src/issue/structure";
+import { toBlocks } from "../src/notion/blocks";
 import { blocksToText, readOriginalBody } from "./lib/body";
 import { notion, plain, queryAllPages } from "./lib/notion";
 

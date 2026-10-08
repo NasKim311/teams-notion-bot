@@ -1,6 +1,6 @@
 // Notion DB 실제 스키마를 출력하고, 코드(src/notion.ts의 PROP/PROP_TYPES)와 다른 점을 알려준다. 읽기 전용.
 // 사용: npm run notion:schema
-import { PROP, PROP_TYPES } from "../src/notion";
+import { PROP, PROP_TYPES } from "../src/notion/properties";
 import { DATABASE_ID, notion, plain } from "./lib/notion";
 
 type Property = { type: string; [key: string]: any };

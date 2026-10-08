@@ -2,16 +2,9 @@ import { isAuthorized } from "./auth";
 import { suggestStatusKind } from "./issue/classify";
 import { parseIssues } from "./issue/parse";
 import { BODY_MAX, validateIssue } from "./issue/validate";
-import {
-  appendUpdate,
-  createNotionPage,
-  type ExistingPage,
-  findExistingPages,
-  getStatusOptions,
-  NotionError,
-  notionErrorMessage,
-  uploadImage,
-} from "./notion";
+import { NotionError, notionErrorMessage } from "./notion/client";
+import { appendUpdate, createNotionPage, type ExistingPage, findExistingPages, getStatusOptions } from "./notion/pages";
+import { uploadImage } from "./notion/uploads";
 import { contentSecurityPolicy, generateNonce, renderPage } from "./page";
 import { html, json, jsonError, methodNotAllowed } from "./response";
 import type { Env, Issue } from "./types";

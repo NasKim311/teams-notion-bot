@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chunkText, richText, toBlocks } from "../src/blocks";
+import { chunkText, imageBlocks, richText, toBlocks } from "../../src/notion/blocks";
 
 describe("chunkText", () => {
   it("2000자 단위로 나눈다 (4500자 → 3개)", () => {
@@ -73,7 +73,6 @@ describe("toBlocks", () => {
 
 describe("imageBlocks", () => {
   it("file_upload id → 이미지 블록", async () => {
-    const { imageBlocks } = await import("../src/blocks");
     expect(imageBlocks(["id-1"])).toEqual([
       { object: "block", type: "image", image: { type: "file_upload", file_upload: { id: "id-1" } } },
     ]);
