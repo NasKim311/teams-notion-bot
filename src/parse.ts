@@ -10,7 +10,9 @@ import type { Issue, IssueType } from "./types";
 //   본문...
 // Teams 메시지 링크(링크:/원문: 줄, 링크만 있는 줄)는 저장하지 않고 본문에서 뺀다.
 
-const TITLE_MAX = 50;
+const TITLE_MAX = 60;
+/** 끊을 절이 없을 때 허용하는 최대 길이 */
+const TITLE_HARD_MAX = 100;
 const NAME_MAX = 40;
 export const UNTITLED = "(제목 없음)";
 export const UNKNOWN_AUTHOR = "알 수 없음";
@@ -76,16 +78,45 @@ export function suggestStatusKind(text: string): "complete" | "inProgress" | nul
   return null;
 }
 
-/** 유형 태그를 빼고 최대 50자로 자른다. 가능하면 단어 경계에서 자른다. */
-export function makeTitle(text: string): string {
+/** 유형 태그와 중복 공백을 뺀다. 사용자가 직접 쓴 제목(제목: 필드)은 자르지 않는다. */
+export function cleanTitle(text: string): string {
   const title = text.replace(TYPE_TAG_ALL, "").replace(/\s+/g, " ").trim();
-  if (title === "") return UNTITLED;
+  return title === "" ? UNTITLED : title;
+}
 
-  const chars = Array.from(title);
-  if (chars.length <= TITLE_MAX) return title;
-  const cut = chars.slice(0, TITLE_MAX - 1).join("");
-  const space = cut.lastIndexOf(" ");
-  return `${space >= cut.length * 0.6 ? cut.slice(0, space) : cut}…`;
+// 절이 끝나는 연결 어미 → 끝맺음 ("로드되면서 …" → "로드됨", "없어 …" → "없음")
+// "~하고/~되고"는 조건이 이어지는 경우가 많아("추가하고 입력하지 않을 경우") 끊지 않는다.
+const CLAUSE_END = /(하면서|해서|되면서|되어서|돼서|없어서|없어|있어서|않아서|않아)(?=\s)|(?=,\s)/g;
+const CLAUSE_MIN = 8;
+
+function closeClause(ending: string | undefined): string {
+  if (!ending) return ""; // 쉼표 앞에서 끊음
+  if (/^[하해]/.test(ending)) return "함";
+  if (/^[되돼]/.test(ending)) return "됨";
+  if (ending.startsWith("없")) return "없음";
+  if (ending.startsWith("있")) return "있음";
+  return "않음";
+}
+
+/**
+ * 자동 제목: 길면 "…"로 자르지 않고, 60자 안에서 끝나는 마지막 절까지만 쓰고 끝맺는다.
+ * 끊을 절이 없으면 문장을 그대로 둔다 (너무 길면 단어 경계에서).
+ */
+export function makeTitle(text: string): string {
+  const title = cleanTitle(text);
+  const length = (s: string) => Array.from(s).length;
+  if (length(title) <= TITLE_MAX) return title;
+
+  let best: string | null = null;
+  for (const match of title.matchAll(CLAUSE_END)) {
+    const candidate = `${title.slice(0, match.index)}${closeClause(match[1])}`.trim();
+    if (length(candidate) > TITLE_MAX) break;
+    if (length(candidate) >= CLAUSE_MIN) best = candidate;
+  }
+  if (best) return best;
+  if (length(title) <= TITLE_HARD_MAX) return title;
+  const cut = Array.from(title).slice(0, TITLE_HARD_MAX).join("");
+  return cut.slice(0, cut.lastIndexOf(" ") > 0 ? cut.lastIndexOf(" ") : undefined).trim();
 }
 
 /** "[영역] 요약". 요약이 이미 같은 말로 시작하면("BO 쿠폰 …") 그 말은 뺀다. */
@@ -214,7 +245,9 @@ export function polishSummary(text: string): string {
     .split(/\s*\/\s+/)[0]!
     .replace(/\s*\([^()]*\)/g, "")
     .replace(/(?:^|(?<=\s))\/(?:[\w-]+\/)*([\w-]+)\s*(?=페이지)/g, "$1 ") // "/fit/fits 페이지" → "fits 페이지"
+    .replace(/(화면|페이지|UI|영역|부분|탭|팝업|모달|버튼|컴포넌트)\s?인데\s+/g, "$1에서 ") // "미리보기 화면인데 …" → "미리보기 화면에서 …"
     .replace(/\s?인데\s+/g, ", ")
+    .replace(/(?:아래|다음)와\s*같이\s+|이렇게\s+/g, "")
     .replace(/\s+/g, " ")
     .trim()
     .replace(LEADING_FILLER, "")
@@ -332,7 +365,7 @@ function buildIssue(lines: string[], prepared: Prepared, options: ParseOptions):
   const devInfo = extractDevInfo(`${title ?? ""}\n${body}`, options.redmineIssueUrl);
 
   return {
-    title: title ? makeTitle(title) : withScope(devInfo.areas[0] ?? devInfo.platform, makeIssueTitle(lines)),
+    title: title ? cleanTitle(title) : withScope(devInfo.areas[0] ?? devInfo.platform, makeIssueTitle(lines)),
     type: classify(`${title ?? ""}\n${body}`),
     body,
     author: prepared.author ? personName(prepared.author) : UNKNOWN_AUTHOR,
