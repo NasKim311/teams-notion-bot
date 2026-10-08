@@ -30,7 +30,7 @@ GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → �
   | 바뀐 것 | 함께 고칠 곳 |
   |---|---|
   | 결정·정책 (제목 규칙, 저장 여부, 분류 기준 등) | `docs/decisions.md` (날짜·이유 포함) |
-  | Notion 컬럼·연결 권한·스크립트 사용법 | `docs/notion.md`, `.claude/skills/notion-sync`, `.claude/skills/retitle` |
+  | Notion 컬럼·연결 권한·스크립트 사용법 | `docs/notion.md`, `.claude/skills/notion-sync`, `.claude/skills/retitle`, `.claude/skills/restructure` |
   | 배포·시크릿·환경 변수·운영 주소 | `docs/operations.md`, `.claude/skills/deploy` |
   | 새로 겪은 함정·해결 방법 | `docs/gotchas.md` |
   | 흐름·모듈·명령어·규칙 | 이 파일 (CLAUDE.md) |
@@ -46,9 +46,11 @@ GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → �
 ## 스킬 (.claude/skills)
 - `notion-sync`: Notion DB 컬럼이 바뀌었을 때 코드 맞추기
 - `retitle`: 기존 Notion 제목을 현재 규칙으로 다시 만들기
+- `restructure`: 기존 Notion 본문을 현재 고정 틀로 다시 쓰기 (이미지·업데이트 유지)
 - `deploy`: 운영 배포 + 검증 (`/deploy`로만 실행)
 
 ## 명령어
 - npm run dev / npm test / npm run typecheck / npx wrangler tail
 - npm run notion:schema (DB 스키마 ↔ 코드 비교, 읽기 전용)
 - npm run notion:retitle [-- --apply --skip <ID,...>] (기존 제목 재생성, 기본은 미리보기)
+- npm run notion:restructure [-- --apply --skip <ID,...>] (기존 본문 재작성, 기본은 미리보기)

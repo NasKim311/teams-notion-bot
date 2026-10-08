@@ -9,7 +9,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p scripts",
     "notion:schema": "tsx scripts/notion-schema.ts",
-    "notion:retitle": "tsx scripts/retitle.ts"
+    "notion:retitle": "tsx scripts/retitle.ts",
+    "notion:restructure": "tsx scripts/restructure.ts"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.22.0",

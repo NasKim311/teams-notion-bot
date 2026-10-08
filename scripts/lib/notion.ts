@@ -23,18 +23,26 @@ if (!TOKEN || !DATABASE_ID) throw new Error(".dev.vars에 NOTION_TOKEN과 NOTION
 
 /** Notion API 호출. 실패하면 status/code만 담은 오류를 던진다. */
 export async function notion<T = any>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`https://api.notion.com/v1${path}`, {
-    method,
-    headers: { Authorization: `Bearer ${TOKEN}`, "Notion-Version": "2022-06-28", "Content-Type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const data = (await res.json().catch(() => ({}))) as { code?: string };
-  if (!res.ok) throw new Error(`${method} ${path} → HTTP ${res.status} ${data.code ?? ""}`);
-  return data as T;
+  for (let attempt = 0; ; attempt += 1) {
+    const res = await fetch(`https://api.notion.com/v1${path}`, {
+      method,
+      headers: { Authorization: `Bearer ${TOKEN}`, "Notion-Version": "2022-06-28", "Content-Type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    // 요청이 많으면(429) Retry-After만큼 기다렸다가 다시 시도
+    if (res.status === 429 && attempt < 5) {
+      await new Promise((resolve) => setTimeout(resolve, Number(res.headers.get("Retry-After") ?? 1) * 1000));
+      continue;
+    }
+    const data = (await res.json().catch(() => ({}))) as { code?: string };
+    if (!res.ok) throw new Error(`${method} ${path} → HTTP ${res.status} ${data.code ?? ""}`);
+    return data as T;
+  }
 }
 
-export type RichText = { plain_text: string; annotations?: { color?: string } };
-export const plain = (items: RichText[] = []) => items.map((item) => item.plain_text).join("");
+/** Notion에서 읽은 rich_text(plain_text) 또는 우리가 만든 블록(text.content) 모두 지원 */
+export type RichText = { plain_text?: string; text?: { content: string }; annotations?: { color?: string } };
+export const plain = (items: RichText[] = []) => items.map((item) => item.plain_text ?? item.text?.content ?? "").join("");
 
 /** DB의 모든 페이지 (100개씩 이어서 조회) */
 export async function queryAllPages(): Promise<any[]> {

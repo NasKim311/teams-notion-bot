@@ -34,6 +34,10 @@
 
 ## 스크립트 (로컬, `.dev.vars` 필요)
 - `npm run notion:schema`: 실제 스키마를 출력하고 `PROP`과 비교한다. 읽기 전용이다.
+- `npm run notion:restructure`: 기존 페이지 본문(첫 구분선 앞 글 블록)을 현재 고정 틀로 다시 쓴다.
+  - 기본은 미리보기만 하고, 이전/이후 비교를 `scripts/.backups/restructure-preview-*.txt`로 저장한다.
+  - `-- --apply`로 적용하며, 원본 블록은 `bodies-*.json`에 백업된다. 이미지와 업데이트는 건드리지 않는다.
+  - 봇이 만들지 않은 블록이 있는 페이지는 건너뛴다. 절차는 `restructure` 스킬을 따른다.
 - `npm run notion:retitle`: 기존 페이지 제목을 현재 규칙으로 다시 만든다. 기본은 미리보기만 한다.
   - `-- --apply`로 적용하고, `-- --skip <ID,...>`로 일부 페이지를 제외한다. 이전 제목은 `scripts/.backups/`에 백업된다 (git 제외).
   - 사람이 직접 고친 제목은 `--skip`으로 빼야 한다. 현재 직접 다듬은 2건:
