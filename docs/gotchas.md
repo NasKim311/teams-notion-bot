@@ -3,6 +3,8 @@
 ## Cloudflare / Wrangler
 - **compatibility_date**: 로컬 workerd가 지원하는 날짜보다 미래면 `wrangler dev`와 테스트가 실패한다 (2026-10-01 → 2026-08-22로 낮춤). 올릴 때는 로컬에서 먼저 확인한다.
 - **Windows에서 `wrangler dev` 종료**: 백그라운드로 띄운 뒤 끄면 node/workerd 프로세스가 남아 포트(8787)를 잡고 있는다. 부모 bash PID를 찾아 `taskkill /T /F`로 프로세스 트리째 종료한다.
+- **Wrangler 텍스트 모듈 규칙 (`rules`)**: glob은 파일 경로가 아니라 **import 문자열**(`./client.js`)과 비교된다. `**/page/client.js`처럼 쓰면 맞지 않아 `.js`가 JS로 묶이고 "No matching export … default" 빌드 오류가 난다. `**/client.js`, `**/*.css`처럼 쓴다.
+  - 테스트(Vitest)는 통과해도 배포 빌드에서만 깨질 수 있다. 바꾼 뒤에는 `npx wrangler deploy --dry-run --outdir <임시폴더>`로 확인한다.
 - **workers.dev 첫 배포**: 서브도메인 등록과 이메일 인증이 필요하다 (사용자가 직접 한다).
 
 ## TypeScript / 테스트

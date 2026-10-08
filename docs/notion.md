@@ -23,7 +23,7 @@
 | 담당자, 우선순위, 배포일 | select/select/date | 사람 |
 | 등록일 | created_time | 자동 |
 
-- 코드의 컬럼 이름·타입은 `src/notion.ts`의 `PROP`/`PROP_TYPES` 한 곳에서 관리한다.
+- 코드의 컬럼 이름·타입은 `src/notion/properties.ts`의 `PROP`/`PROP_TYPES` 한 곳에서 관리한다.
 - 상태 그룹: To-do{검토 필요, 시작 전} / In progress{진행 중} / Complete{미진행, 완료}.
   - 추천 상태는 그룹 안의 같은 이름("진행 중", "완료")을 먼저 고른다. 완료 그룹 첫 옵션이 "미진행"이기 때문이다.
 

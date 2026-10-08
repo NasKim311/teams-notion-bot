@@ -10,10 +10,9 @@
 - **원격 저장소 백업**: GitHub(`origin`)에 push되어 있는지 주기적으로 확인한다.
 
 ## 코드 품질
-- **입력 화면 JS에 자동 테스트 없음**: `src/page.ts`의 클라이언트 코드(카드 렌더링, 이미지 유지, 순차 등록, 기존 이슈 선택)는 수동 확인에만 의존한다.
+- **입력 화면 JS에 자동 테스트 없음**: `src/page/client.js`(카드 렌더링, 이미지 유지, 순차 등록, 기존 이슈 선택)는 수동 확인에만 의존한다. 린트(Biome)는 적용된다.
   - 후보: 렌더링한 HTML의 구조 테스트, 또는 브라우저 E2E(Playwright 등, devDependency).
-- **`parse.ts`가 큼 (약 430줄)**: 제목 관련 로직(`polishSummary`, `makeTitle`, `withScope`, `makeIssueTitle`)을 `title.ts`로 분리하면 읽기 쉬워진다.
-- **Notion API 버전**: `2022-06-28`로 동작한다. 최신 API의 data source 구조로 옮길 필요가 생기면 `notion.ts`와 `scripts/lib/notion.ts`를 함께 바꾼다.
+- **Notion API 버전**: `2022-06-28`로 동작한다. 최신 API의 data source 구조로 옮길 필요가 생기면 `src/notion/client.ts`와 `scripts/lib/notion.ts`를 함께 바꾼다.
 
 ## 기능 한계 (규칙 기반이라 생기는 것)
 - **긴 제목**: 문장이 길고 끊을 절이 없으면 제목이 60자를 넘는다 (100자까지 허용). 미리보기 카드에서 고친다.

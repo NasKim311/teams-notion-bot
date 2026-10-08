@@ -5,7 +5,7 @@ description: Notion 이슈 DB의 컬럼(이름·타입·추가·삭제)이 바�
 
 # Notion DB 싱크
 
-사용자는 Notion에서 DB 컬럼을 직접 고친다. 코드(`src/notion.ts`의 `PROP`/`PROP_TYPES`)를 실제 DB에 맞춘다.
+사용자는 Notion에서 DB 컬럼을 직접 고친다. 코드(`src/notion/properties.ts`의 `PROP`/`PROP_TYPES`)를 실제 DB에 맞춘다.
 배경: [docs/notion.md](../../../docs/notion.md), [docs/decisions.md](../../../docs/decisions.md)
 
 ## 1. 실제 스키마 확인 (읽기 전용)
@@ -30,13 +30,14 @@ npm run notion:schema
 - 결정한 내용은 `docs/decisions.md`에 날짜와 함께 남긴다.
 
 ## 4. 코드 수정
-- `src/notion.ts`: `PROP`, `PROP_TYPES`, `buildProperties`, `buildUpdateProperties`(업데이트 시 병합 규칙), `findExistingPages`(조회 필터)
-- 새 필드가 생기면: `src/types.ts`(Issue), `src/issue.ts`(검증), `src/parse.ts`/`src/extract.ts`(추출), `src/page.ts`(카드 입력칸과 `fields` 배열)
+- `src/notion/properties.ts`: `PROP`, `PROP_TYPES`, `buildProperties`, `buildUpdateProperties`(업데이트 시 병합 규칙)
+- `src/notion/pages.ts`: `findExistingPages`(조회 필터), `getStatusOptions`(상태 그룹)
+- 새 필드가 생기면: `src/types.ts`(Issue), `src/issue/validate.ts`(검증), `src/issue/extract.ts`·`src/issue/parse.ts`(추출), `src/page/page.ts`(카드 입력칸)·`src/page/client.js`(`fields` 배열)
 - 타입별 값 형식:
   - select는 `{ select: { name } | null }` (쉼표 불가)
   - url은 `{ url: string | null }`
   - rich_text는 `plainText()` 사용
-- `test/notion.test.ts`, `test/index.test.ts`, `test/issue.test.ts`, `test/parse.test.ts`의 기대값을 함께 고친다.
+- `test/notion/*.test.ts`, `test/index.test.ts`, `test/issue/validate.test.ts`, `test/issue/parse.test.ts`의 기대값을 함께 고친다.
 
 ## 5. 확인과 커밋
 ```

@@ -4,6 +4,8 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-22",
   "observability": { "enabled": true },
+  // 입력 화면의 스타일·브라우저 코드는 파일 내용을 문자열로 가져와 page.ts가 인라인한다
+  "rules": [{ "type": "Text", "globs": ["**/*.css", "**/client.js"], "fallthrough": false }],
   // 비밀값(FORM_PASSWORD, NOTION_TOKEN, NOTION_DATABASE_ID)은
   // 로컬은 .dev.vars, 배포는 `npx wrangler secret put <NAME>`으로 설정한다.
   "vars": {

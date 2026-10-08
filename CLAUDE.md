@@ -16,7 +16,7 @@ GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → �
 
 - preview: 팀 양식 섹션(이슈 사항/기대 동작/[ 이슈 ]/이슈 N) 인식, 여러 이슈 나누기, 개발 정보(레드마인/MR 링크, 브랜치 명, 관련 파일, 영역, FO/BO) 추출, 같은 레드마인 링크의 기존 페이지 조회
 - 새 이슈 본문은 등록 시 고정 틀(현상/기대 동작/원인/처리·해결/참고, 빈 섹션도 제목은 넣음)로 정리, 머리글·답글 대화는 제외. 업데이트는 원문 그대로
-- 모듈: parse(텍스트→Issue, 제목) / sections(라벨·코드 줄) / extract(개발 정보) / structure(본문 고정 틀) / blocks(본문→Notion 블록) / notion(API, 컬럼 이름 PROP) / issue(검증) / page(화면)
+- 폴더: `api/`(API별 처리) · `http/`(인증·응답·요청 읽기·로그) · `issue/`(붙여넣기→이슈, 순수 함수) · `notion/`(Notion API, 컬럼 이름 PROP) · `page/`(화면: page.ts + styles.css + client.js). 자세한 구조는 README
 
 ## 규칙
 - 비밀값은 env로만 접근: FORM_PASSWORD, NOTION_TOKEN, NOTION_DATABASE_ID. 코드/로그/대화에 출력 금지
@@ -24,7 +24,7 @@ GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → �
 - 로그에는 Notion status/code만 남기고 붙여넣은 내용·토큰은 남기지 않음
 - 입력 화면은 외부 리소스 없이 인라인 CSS/JS + nonce CSP (style 속성 금지). 사용자 입력은 textContent/value로만 렌더링
 - 파싱/검증 로직은 순수 함수로 작성, index.ts는 조립만
-- Notion 컬럼 이름·타입은 `src/notion.ts`의 `PROP`/`PROP_TYPES`에서만 관리
+- Notion 컬럼 이름·타입은 `src/notion/properties.ts`의 `PROP`/`PROP_TYPES`에서만 관리
 - 커밋 전 `npm run format` 후 `npm run typecheck && npm run lint && npm test` 통과 필수. 커밋은 작업 단위로
 - **개선·버그 수정으로 동작이 바뀌면 관련 문서와 스킬도 같은 커밋에서 함께 고친다.** 코드만 바뀌고 문서·스킬이 옛 내용으로 남으면 안 된다. 커밋 전에 아래 표에서 해당 항목을 확인한다
 

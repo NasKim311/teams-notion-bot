@@ -77,15 +77,39 @@ FitDetail.tsx: ssoToken 의 조건문이 반대로 설정된 것으로 보임   
 
 ## 구조
 
-```
 브라우저(입력 화면) ──▶ Cloudflare Worker ──▶ Notion API
-                        index.ts   라우팅·인증·조립
-                        ├ parse      텍스트 → 이슈 (머리글·라벨·제목·유형·나누기)
-                        ├ extract    레드마인/MR/브랜치/파일/영역/FO·BO
-                        ├ structure  본문 고정 틀
-                        ├ blocks     본문 → Notion 블록
-                        ├ issue      입력 검증
-                        └ notion     Notion 호출 (컬럼 이름은 PROP 한 곳)
+
+```
+src/
+├─ index.ts          진입점: 라우팅과 비밀번호 확인만
+├─ types.ts          Env, Issue 등 공용 타입
+├─ api/              API별 처리
+│   ├─ preview.ts    POST /api/preview (분석 + 기존 이슈 후보)
+│   ├─ issues.ts     POST /api/issues, /api/issues/update
+│   └─ uploads.ts    POST /api/uploads
+├─ http/             auth(비밀번호) · response(응답·보안 헤더) · request(본문 읽기) · log(오류 로그)
+├─ issue/            붙여넣기 → 이슈 (순수 함수)
+│   ├─ parse.ts      조립: parseIssues / parsePastedText
+│   ├─ text.ts       정규화, 본문 속 머리글 줄 표시
+│   ├─ header.ts     Teams 머리글·작성자
+│   ├─ sections.ts   라벨·코드 줄 판별
+│   ├─ classify.ts   유형 분류, 추천 상태
+│   ├─ title.ts      제목 규칙
+│   ├─ split.ts      여러 이슈 나누기
+│   ├─ extract.ts    레드마인/MR/브랜치/파일/영역/FO·BO
+│   ├─ structure.ts  본문 고정 틀
+│   └─ validate.ts   입력 검증
+├─ notion/           Notion API
+│   ├─ client.ts     요청·오류·사용자용 메시지
+│   ├─ properties.ts 컬럼 이름(PROP)과 속성 변환
+│   ├─ pages.ts      페이지 생성·조회·업데이트
+│   ├─ uploads.ts    이미지 업로드
+│   └─ blocks.ts     본문 → Notion 블록
+└─ page/             입력 화면
+    ├─ page.ts       HTML (nonce CSP)
+    ├─ styles.css    스타일   ┐ Wrangler가 텍스트로 읽어
+    └─ client.js     브라우저 코드 ┘ page.ts가 인라인
+test/                src와 같은 폴더 구조
 ```
 
 | API | 하는 일 |

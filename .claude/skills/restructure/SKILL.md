@@ -1,6 +1,6 @@
 ---
 name: restructure
-description: Notion에 이미 등록된 이슈들의 본문을 현재 고정 틀(src/structure.ts)로 다시 쓴다. 본문 정리 규칙을 바꾼 뒤 사용자가 "기존 본문도 새 틀로 바꿔줘", "노션 본문 양식 맞춰줘"라고 할 때 사용.
+description: Notion에 이미 등록된 이슈들의 본문을 현재 고정 틀(src/issue/structure.ts)로 다시 쓴다. 본문 정리 규칙을 바꾼 뒤 사용자가 "기존 본문도 새 틀로 바꿔줘", "노션 본문 양식 맞춰줘"라고 할 때 사용.
 ---
 
 # 기존 이슈 본문 다시 쓰기

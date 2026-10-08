@@ -19,17 +19,18 @@
 
 ## 파일과 모듈
 - **파일 하나에 책임 하나.** 파일 첫 줄 주석에 역할을 한 줄로 적는다 (예: `// 본문 텍스트 → Notion 블록.`).
-- **300줄을 넘으면 분리를 검토한다.** 지금 넘는 `page.ts`, `parse.ts`, `notion.ts`는 [roadmap.md](roadmap.md)에 분리 후보로 적혀 있다.
+- **300줄을 넘으면 분리를 검토한다.** (예외: `page/client.js`는 화면 코드 한 덩어리라 300줄을 넘는다.)
+- **폴더 = 기능 영역.** `api/`(API별 처리), `http/`(요청·응답 공통), `issue/`(분석, 순수), `notion/`(Notion API), `page/`(화면). 테스트는 `test/`에 같은 구조로 둔다.
 - **순수 함수와 입출력을 나눈다.**
-  - 순수: `parse`, `sections`, `extract`, `structure`, `blocks`, `issue`. 네트워크·시간·난수를 쓰지 않는다. 필요하면 인자로 받는다 (예: `now: Date`, `fetchImpl`).
-  - 입출력: `notion.ts`(Notion 호출), `index.ts`(요청 조립만).
-- **import 방향:** `index` → 나머지 / `notion` → `blocks`·`structure` / 분석 모듈끼리는 `parse` → `sections`·`extract`. 순수 모듈이 `notion`·`index`를 import하면 안 된다.
+  - 순수: `issue/` 전부, `notion/blocks.ts`, `notion/properties.ts`. 네트워크·시간·난수를 쓰지 않는다. 필요하면 인자로 받는다 (예: `now: Date`, `fetchImpl`).
+  - 입출력: `notion/client·pages·uploads`(Notion 호출), `api/`(요청 처리), `index.ts`(라우팅만).
+- **import 방향:** `index` → `api`·`http`·`page` / `api` → `issue`·`notion`·`http` / `notion` → `issue`(structure·text·sections). `issue/`는 `notion`·`api`·`http`를 import하면 안 된다. 같은 폴더 안에서는 `parse` → 나머지, `text`는 아무것도 import하지 않는 바닥 모듈.
 - **Notion 컬럼 이름은 `PROP`으로만 쓴다.** 코드에 `"레드마인 링크"` 같은 문자열을 직접 쓰지 않는다.
 
 ## 이름
 | 대상 | 규칙 | 예 |
 |---|---|---|
-| 파일 | 소문자 한 단어 (스크립트는 kebab-case) | `structure.ts`, `notion-schema.ts` |
+| 파일 | 소문자 한 단어 (스크립트는 kebab-case). 폴더가 맥락을 주므로 접두어를 붙이지 않음 | `notion/pages.ts`, `notion-schema.ts` |
 | 함수 | camelCase, 동사로 시작 | `parseIssues`, `buildProperties`, `extractFiles`, `makeTitle` |
 | 참/거짓 | `is`·`has`로 시작 | `isCodeLine`, `isHeaderLine` |
 | 상수·정규식 | UPPER_SNAKE_CASE | `TITLE_MAX`, `LONE_DEV_LINE` |
@@ -63,9 +64,10 @@
 - Notion은 fetch 목으로 대신한다. 테스트는 실제 Notion을 호출하지 않는다.
 - 버그를 고칠 때는 실패하는 테스트를 먼저 추가한다.
 
-## 입력 화면 (`page.ts`의 브라우저 JS)
-템플릿 문자열 안의 코드라 Biome이 검사하지 못한다. 아래 규칙을 직접 지킨다.
-- ES5 문법(`var`, `function`)으로 쓴다. 빌드 없이 그대로 실행되기 때문이다.
+## 입력 화면 (`page/client.js`, `page/styles.css`)
+실제 파일이라 Biome이 검사하지만, 빌드 없이 그대로 브라우저에서 실행·적용된다. `page.ts`가 nonce가 붙은 `<script>`/`<style>`로 인라인한다.
+- 최신 JS(`const`/`let`, 화살표 함수, 템플릿 문자열)를 쓴다. `var`는 린트 오류다. TypeScript 문법과 `import`는 쓰지 않는다 (변환 단계가 없음).
+- 자동 테스트가 없으므로, 바꾼 뒤에는 로컬(`npm run dev`)에서 미리보기·등록 흐름을 직접 확인한다. Notion에 실제로 쓰지 않으려면 브라우저에서 `fetch`를 가짜로 바꿔 확인한다.
 - 요소는 `id` 또는 `data-field`/`data-role` 속성으로 찾는다. 클래스는 스타일에만 쓴다.
 - 사용자 입력은 `textContent`/`value`로만 넣는다 (`innerHTML` 금지).
 - `style="…"` 속성은 쓰지 않는다 (CSP). 스타일은 `<style nonce>` 안의 클래스로 쓴다.
