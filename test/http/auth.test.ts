@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAuthorized } from "../src/auth";
+import { isAuthorized } from "../../src/http/auth";
 
 const bearer = (password: string) => `Bearer ${encodeURIComponent(password)}`;
 

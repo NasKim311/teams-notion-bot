@@ -1,7 +1,7 @@
 // 붙여넣기 입력 화면. 외부 리소스 없이 인라인 CSS/JS만 사용하고, CSP nonce로 인라인 실행을 허용한다.
 // 사용자 입력은 항상 textContent/value로만 다룬다 (innerHTML 금지).
 
-import { ISSUE_TYPES, PLATFORMS } from "./types";
+import { ISSUE_TYPES, PLATFORMS } from "../types";
 
 const TEMPLATE = [
   "작성자: 홍길동",
