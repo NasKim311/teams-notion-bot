@@ -5,7 +5,7 @@ const valid = {
   title: "로그인 버튼 무반응",
   type: "버그",
   author: "홍길동",
-  sourceUrl: "https://teams.microsoft.com/l/message/19:abc@thread.v2/1",
+  platform: "BO",
   body: "본문",
   workItemUrl: "http://redmine.example.com/issues/1",
   mrUrl: "http://gitlab.example.com/a/-/merge_requests/2",
@@ -26,7 +26,7 @@ describe("validateIssue", () => {
     expect(
       validateIssue({
         ...valid,
-        sourceUrl: "  ",
+        platform: "",
         author: "",
         workItemUrl: "",
         mrUrl: null,
@@ -36,12 +36,16 @@ describe("validateIssue", () => {
       }),
     ).toMatchObject({
       ok: true,
-      value: { sourceUrl: null, author: "알 수 없음", workItemUrl: null, mrUrl: null, branch: "", files: "", areas: [] },
+      value: { platform: null, author: "알 수 없음", workItemUrl: null, mrUrl: null, branch: "", files: "", areas: [] },
     });
   });
 
   it("영역은 쉼표 문자열도 받고 중복·빈 값 제거", () => {
     expect(validateIssue({ ...valid, areas: " fit, evt,,fit " })).toMatchObject({ ok: true, value: { areas: ["fit", "evt"] } });
+  });
+
+  it("작성자는 select 옵션이라 쉼표를 공백으로", () => {
+    expect(validateIssue({ ...valid, author: "Kim, Dev" })).toMatchObject({ ok: true, value: { author: "Kim Dev" } });
   });
 
   it("운영 유형 허용", () => {
@@ -54,8 +58,9 @@ describe("validateIssue", () => {
     ["제목 201자", { ...valid, title: "가".repeat(201) }, "200자"],
     ["모르는 유형", { ...valid, type: "질문" }, "유형"],
     ["작성자 101자", { ...valid, author: "a".repeat(101) }, "작성자"],
-    ["원문 링크 javascript:", { ...valid, sourceUrl: "javascript:alert(1)" }, "원문 링크"],
-    ["일감 URL 아님", { ...valid, workItemUrl: "#1234" }, "일감"],
+    ["FO/BO 아닌 값", { ...valid, platform: "XO" }, "FO/BO"],
+    ["레드마인 링크 javascript:", { ...valid, workItemUrl: "javascript:alert(1)" }, "레드마인 링크"],
+    ["레드마인 링크 URL 아님", { ...valid, workItemUrl: "#1234" }, "레드마인 링크"],
     ["MR ftp", { ...valid, mrUrl: "ftp://x" }, "MR"],
     ["브랜치 2001자", { ...valid, branch: "a".repeat(2001) }, "브랜치"],
     ["영역 11개", { ...valid, areas: Array.from({ length: 11 }, (_, i) => `a${i}`) }, "영역"],

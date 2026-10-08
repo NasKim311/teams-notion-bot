@@ -7,6 +7,7 @@ import {
   normalizeText,
   parseIssues,
   parsePastedText,
+  personName,
   rewriteHeaders,
   splitIssueLines,
   suggestStatusKind,
@@ -19,15 +20,15 @@ const LINK =
 const lines = (...rows: string[]) => rows;
 
 describe("parsePastedText — 추천 양식", () => {
-  it("필드 줄로 작성자/링크를 채우고 본문에서는 뺀다", () => {
+  it("필드 줄로 작성자를 채우고 작성자/링크 줄은 본문에서 뺀다", () => {
     const issue = parsePastedText(
       ["[버그] 로그인 버튼 무반응", "작성자: 홍길동(사원) - 회사", `링크: ${LINK}`, "재현: 로그인 클릭", "기대: 이동"].join("\n"),
     );
     expect(issue).toEqual({
       title: "로그인 버튼 무반응",
       type: "버그",
-      author: "홍길동(사원) - 회사",
-      sourceUrl: LINK,
+      author: "홍길동",
+      platform: null,
       body: "[버그] 로그인 버튼 무반응\n재현: 로그인 클릭\n기대: 이동",
       workItemUrl: null,
       mrUrl: null,
@@ -44,10 +45,10 @@ describe("parsePastedText — 추천 양식", () => {
     expect(issue.body).toBe("권한 부탁드립니다");
   });
 
-  it("전각 콜론, 원문/원문 링크 키, 일반 http(s) 링크도 인식", () => {
-    expect(parsePastedText(`작성자： 김개발\n원문 링크: ${LINK}\n내용`)).toMatchObject({ author: "김개발", sourceUrl: LINK });
-    expect(parsePastedText(`원문: ${LINK}\n내용`).sourceUrl).toBe(LINK);
-    expect(parsePastedText("링크: https://example.com/a?b=1\n내용").sourceUrl).toBe("https://example.com/a?b=1");
+  it("전각 콜론, 원문/원문 링크/링크 줄은 저장하지 않고 본문에서 뺀다", () => {
+    expect(parsePastedText(`작성자： 김개발\n원문 링크: ${LINK}\n내용`)).toMatchObject({ author: "김개발", body: "내용" });
+    expect(parsePastedText(`원문: ${LINK}\n내용`).body).toBe("내용");
+    expect(parsePastedText("링크: https://example.com/a?b=1\n내용").body).toBe("내용");
   });
 });
 
@@ -65,21 +66,21 @@ describe("parsePastedText — Teams 복사 형식", () => {
         "기대 동작 : 토큰이 없을 때 에러 Alert",
       ).join("\n"),
     );
-    expect(issue.author).toBe("홍길동(사원) - 회사");
+    expect(issue.author).toBe("홍길동");
     expect(issue.title).toBe("ShopDetail.tsx: 로그인 토큰 조건문이 반대로 설정된 것으로 보임");
     expect(issue.type).toBe("버그");
     expect(issue.body.split("\n")[0]).toBe("— 홍길동(사원) - 회사 · 오후 4:30");
   });
 
   it("시간 줄이 이름보다 먼저 와도 인식", () => {
-    expect(parsePastedText("오후 5:20\n김개발(사원) - 회사\n예약은 제가 확인할게요").author).toBe("김개발(사원) - 회사");
+    expect(parsePastedText("오후 5:20\n김개발(사원) - 회사\n예약은 제가 확인할게요").author).toBe("김개발");
   });
 
   it("전달된 메시지는 연달아 붙은 머리글 중 마지막(원작성자)을 작성자로", () => {
     const issue = parsePastedText(
       lines("박팀장(담당) - 회사", "어제 오전 8:43", "김개발(담당) - 회사", "2026-09-30 오후 1:25", "", "BO 쿠폰 화면 아이콘 없음").join("\n"),
     );
-    expect(issue.author).toBe("김개발(담당) - 회사");
+    expect(issue.author).toBe("김개발");
     expect(issue.body).toBe(
       "— 박팀장(담당) - 회사 · 어제 오전 8:43\n— 김개발(담당) - 회사 · 2026-09-30 오후 1:25\n\nBO 쿠폰 화면 아이콘 없음",
     );
@@ -89,16 +90,20 @@ describe("parsePastedText — Teams 복사 형식", () => {
     const issue = parsePastedText(
       lines("홍길동(사원) - 회사", "오후 1:32", "이슈 사항 : 정렬 UI 초기화", "김개발(사원) - 회사", "오후 1:57", "어떻게 파악하셨나요?").join("\n"),
     );
-    expect(issue.author).toBe("홍길동(사원) - 회사");
+    expect(issue.author).toBe("홍길동");
     expect(issue.body).toContain("— 김개발(사원) - 회사 · 오후 1:57");
   });
 
-  it("링크만 있는 줄은 원문 링크로 쓰고 본문에서 뺀다 / 문장 속 링크는 본문 유지", () => {
-    const lone = parsePastedText(`화면이 깨져요\n${LINK}`);
-    expect(lone).toMatchObject({ sourceUrl: LINK, body: "화면이 깨져요" });
-    const inline = parsePastedText(`여기 참고 ${LINK} 확인 부탁`);
-    expect(inline.sourceUrl).toBe(LINK);
-    expect(inline.body).toContain(LINK);
+  it("Teams 링크만 있는 줄은 본문에서 뺀다 / 문장 속 링크는 본문 유지", () => {
+    expect(parsePastedText(`화면이 깨져요\n${LINK}`).body).toBe("화면이 깨져요");
+    expect(parsePastedText(`여기 참고 ${LINK} 확인 부탁`).body).toContain(LINK);
+  });
+
+  it("personName: Teams 표시 이름에서 이름만, 쉼표 제거", () => {
+    expect(personName("정주영(사원) - 유젠")).toBe("정주영");
+    expect(personName("홍길동 - 회사")).toBe("홍길동");
+    expect(personName("Kim, Dev")).toBe("Kim Dev");
+    expect(personName("서지연")).toBe("서지연");
   });
 
   it("작성자 필드가 머리글보다 우선, 아무것도 없으면 기본값", () => {
@@ -117,7 +122,7 @@ describe("parsePastedText — Teams 복사 형식", () => {
       title: "(제목 없음)",
       type: "기타",
       author: "알 수 없음",
-      sourceUrl: null,
+      platform: null,
       body: "",
       workItemUrl: null,
       mrUrl: null,
@@ -281,7 +286,8 @@ describe("splitIssueLines / parseIssues", () => {
       "http://redmine.example.com/issues/12351",
       "http://redmine.example.com/issues/12352",
     ]);
-    expect(issues.every((i) => i.author === "김개발(담당) - 회사")).toBe(true);
+    expect(issues.every((i) => i.author === "김개발")).toBe(true);
+    expect(issues[0]!.platform).toBe("BO");
     expect(issues[0]!.body.startsWith("— 김개발(담당) - 회사 · 2026-09-30 오후 1:25")).toBe(true);
   });
 

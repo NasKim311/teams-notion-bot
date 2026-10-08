@@ -7,7 +7,7 @@ const issue: Issue = {
   type: "버그",
   body: "[버그] 로그인 버튼 무반응\n재현 방법",
   author: "김개발",
-  sourceUrl: "https://teams.microsoft.com/l/message/19%3Aabc%40thread.tacv2/1?parentMessageId=1",
+  platform: null,
   workItemUrl: null,
   mrUrl: null,
   branch: "",
@@ -24,13 +24,13 @@ describe("buildPageRequest", () => {
       properties: {
         제목: { title: [{ type: "text", text: { content: "로그인 버튼 무반응" } }] },
         유형: { select: { name: "버그" } },
-        작성자: { rich_text: [{ type: "text", text: { content: "김개발" } }] },
-        "원문 링크": { url: issue.sourceUrl },
-        일감: { url: null },
-        MR: { url: null },
-        브랜치: { rich_text: [] },
+        작성자: { select: { name: "김개발" } },
+        "레드마인 링크": { url: null },
+        "MR 링크": { url: null },
+        "브랜치 명": { rich_text: [] },
         "관련 파일": { rich_text: [] },
         영역: { multi_select: [] },
+        "FO/BO": { select: null },
       },
       children: [
         {
@@ -51,20 +51,18 @@ describe("buildPageRequest", () => {
         branch: "feature/x",
         files: "src/A.tsx:1, src/B.tsx",
         areas: ["fit", "evt"],
+        platform: "BO",
       },
       "db",
     ).properties;
     expect(props).toMatchObject({
-      일감: { url: "http://redmine.example.com/issues/1" },
-      MR: { url: "http://gitlab.example.com/a/-/merge_requests/2" },
-      브랜치: { rich_text: [{ text: { content: "feature/x" } }] },
+      "레드마인 링크": { url: "http://redmine.example.com/issues/1" },
+      "MR 링크": { url: "http://gitlab.example.com/a/-/merge_requests/2" },
+      "브랜치 명": { rich_text: [{ text: { content: "feature/x" } }] },
       "관련 파일": { rich_text: [{ text: { content: "src/A.tsx:1, src/B.tsx" } }] },
       영역: { multi_select: [{ name: "fit" }, { name: "evt" }] },
+      "FO/BO": { select: { name: "BO" } },
     });
-  });
-
-  it("sourceUrl이 null이면 url도 null", () => {
-    expect(buildPageRequest({ ...issue, sourceUrl: null }, "db").properties["원문 링크"]).toEqual({ url: null });
   });
 
   it("children은 최대 100개", () => {
@@ -166,13 +164,39 @@ describe("기존 이슈 찾기/업데이트", () => {
     properties: {
       제목: { type: "title", title: [{ plain_text: "기존 이슈" }] },
       상태: { type: "status", status: { name: "진행 중" } },
-      일감: { type: "url", url: null },
-      MR: { type: "url", url: "http://gitlab.example.com/a/-/merge_requests/1" },
-      브랜치: { type: "rich_text", rich_text: [{ plain_text: "feature/a" }] },
+      "레드마인 링크": { type: "url", url: null },
+      "MR 링크": { type: "url", url: "http://gitlab.example.com/a/-/merge_requests/1" },
+      "브랜치 명": { type: "rich_text", rich_text: [{ plain_text: "feature/a" }] },
       "관련 파일": { type: "rich_text", rich_text: [] },
       영역: { type: "multi_select", multi_select: [{ name: "fit" }] },
+      "FO/BO": { type: "select", select: null },
       ...overrides,
     },
+  });
+
+  it("getStatusOptions: 완료 그룹에 '완료'가 있으면 첫 옵션('미진행')보다 우선", async () => {
+    const schema = {
+      properties: {
+        상태: {
+          type: "status",
+          status: {
+            options: [
+              { id: "a", name: "검토 필요" },
+              { id: "b", name: "시작 전" },
+              { id: "c", name: "진행 중" },
+              { id: "d", name: "미진행" },
+              { id: "e", name: "완료" },
+            ],
+            groups: [{ option_ids: ["a", "b"] }, { option_ids: ["c"] }, { option_ids: ["d", "e"] }],
+          },
+        },
+      },
+    };
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json(schema));
+    await expect((await import("../src/notion")).getStatusOptions(env, fetchMock)).resolves.toMatchObject({
+      inProgress: "진행 중",
+      complete: "완료",
+    });
   });
 
   it("getStatusOptions: 옵션 이름과 진행 중/완료 그룹의 첫 상태", async () => {
@@ -185,32 +209,27 @@ describe("기존 이슈 찾기/업데이트", () => {
     expect(fetchMock.mock.calls[0]![0]).toBe("https://api.notion.com/v1/databases/db-123");
   });
 
-  it("findExistingPages: 일감·원문 링크 OR 조건으로 조회", async () => {
+  it("findExistingPages: 레드마인 링크로 조회", async () => {
     const { findExistingPages } = await import("../src/notion");
     const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ results: [page()] }));
 
-    const found = await findExistingPages({ workItemUrl: "http://r/issues/1", sourceUrl: "https://t/1" }, env, fetchMock);
+    const found = await findExistingPages({ workItemUrl: "http://r/issues/1" }, env, fetchMock);
     expect(found).toEqual([
       { id: "11111111-2222-3333-4444-555555555555", url: "https://www.notion.so/existing", title: "기존 이슈", status: "진행 중" },
     ]);
     const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe("https://api.notion.com/v1/databases/db-123/query");
-    expect(JSON.parse(init?.body as string).filter).toEqual({
-      or: [
-        { property: "일감", url: { equals: "http://r/issues/1" } },
-        { property: "원문 링크", url: { equals: "https://t/1" } },
-      ],
-    });
+    expect(JSON.parse(init?.body as string).filter).toEqual({ property: "레드마인 링크", url: { equals: "http://r/issues/1" } });
   });
 
   it("findExistingPages: 찾을 단서가 없으면 호출하지 않음", async () => {
     const { findExistingPages } = await import("../src/notion");
     const fetchMock = vi.fn<typeof fetch>();
-    await expect(findExistingPages({ workItemUrl: null, sourceUrl: null }, env, fetchMock)).resolves.toEqual([]);
+    await expect(findExistingPages({ workItemUrl: null }, env, fetchMock)).resolves.toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("buildUpdateProperties: 상태 변경, 빈 일감만 채우고 MR은 유지, 목록은 합침", async () => {
+  it("buildUpdateProperties: 상태 변경, 빈 레드마인 링크·FO/BO만 채우고 MR은 유지, 목록은 합침", async () => {
     const { buildUpdateProperties } = await import("../src/notion");
     const update = buildUpdateProperties(
       page(),
@@ -221,13 +240,15 @@ describe("기존 이슈 찾기/업데이트", () => {
         branch: "feature/a, feature/b",
         files: "src/A.tsx:1",
         areas: ["fit", "evt"],
+        platform: "FO",
       },
       "완료",
     );
     expect(update).toEqual({
       상태: { status: { name: "완료" } },
-      일감: { url: "http://r/issues/9" },
-      브랜치: { rich_text: [{ type: "text", text: { content: "feature/a, feature/b" } }] },
+      "레드마인 링크": { url: "http://r/issues/9" },
+      "FO/BO": { select: { name: "FO" } },
+      "브랜치 명": { rich_text: [{ type: "text", text: { content: "feature/a, feature/b" } }] },
       "관련 파일": { rich_text: [{ type: "text", text: { content: "src/A.tsx:1" } }] },
       영역: { multi_select: [{ name: "fit" }, { name: "evt" }] },
     });
@@ -236,6 +257,8 @@ describe("기존 이슈 찾기/업데이트", () => {
   it("buildUpdateProperties: 바뀔 게 없으면 빈 객체, DB에 없는 컬럼은 건드리지 않음", async () => {
     const { buildUpdateProperties } = await import("../src/notion");
     expect(buildUpdateProperties(page(), { ...issue, branch: "feature/a" }, null)).toEqual({});
+    const withPlatform = page({ "FO/BO": { type: "select", select: { name: "BO" } } });
+    expect(buildUpdateProperties(withPlatform, { ...issue, platform: "FO" }, null)).toEqual({}); // 이미 있으면 유지
     expect(buildUpdateProperties({ id: "x", url: "u", properties: {} }, { ...issue, mrUrl: "http://m/1", areas: ["a"] }, null)).toEqual({});
   });
 

@@ -23,29 +23,36 @@ function plainText(content: string) {
   return [{ type: "text", text: { content: chunkText(content)[0] ?? "" } }];
 }
 
-/** Issue → Notion DB 속성. DB 컬럼 이름을 바꾸면 여기도 함께 바꾼다. */
+/** Notion DB 컬럼 이름. DB에서 컬럼 이름을 바꾸면 여기만 바꾼다. */
+export const PROP = {
+  title: "제목",
+  type: "유형",
+  author: "작성자",
+  workItem: "레드마인 링크",
+  mr: "MR 링크",
+  branch: "브랜치 명",
+  files: "관련 파일",
+  areas: "영역",
+  platform: "FO/BO",
+  status: "상태",
+} as const;
+
+const select = (name: string | null) => ({ select: name ? { name } : null });
+
+/** Issue → Notion DB 속성. 작성자·유형·FO/BO는 select라 없는 이름이면 옵션이 새로 생긴다. */
 export function buildProperties(issue: Issue) {
   return {
-    제목: { title: plainText(issue.title) },
-    유형: { select: { name: issue.type } },
-    작성자: { rich_text: plainText(issue.author) },
-    "원문 링크": { url: issue.sourceUrl },
-    일감: { url: issue.workItemUrl },
-    MR: { url: issue.mrUrl },
-    브랜치: { rich_text: issue.branch ? plainText(issue.branch) : [] },
-    "관련 파일": { rich_text: issue.files ? plainText(issue.files) : [] },
-    영역: { multi_select: issue.areas.map((name) => ({ name })) },
+    [PROP.title]: { title: plainText(issue.title) },
+    [PROP.type]: select(issue.type),
+    [PROP.author]: select(issue.author),
+    [PROP.workItem]: { url: issue.workItemUrl },
+    [PROP.mr]: { url: issue.mrUrl },
+    [PROP.branch]: { rich_text: issue.branch ? plainText(issue.branch) : [] },
+    [PROP.files]: { rich_text: issue.files ? plainText(issue.files) : [] },
+    [PROP.areas]: { multi_select: issue.areas.map((name) => ({ name })) },
+    [PROP.platform]: select(issue.platform),
   };
 }
-
-/** 봇이 채우는 DB 컬럼 정의 (DB에 컬럼을 추가할 때 사용). */
-export const DEV_INFO_SCHEMA = {
-  일감: { url: {} },
-  MR: { url: {} },
-  브랜치: { rich_text: {} },
-  "관련 파일": { rich_text: {} },
-  영역: { multi_select: { options: [] } },
-};
 
 /** POST /v1/pages 요청 바디를 만든다 (본문 블록은 최대 100개, 나머지는 따로 이어 붙인다). */
 export function buildPageRequest(issue: Issue, databaseId: string, blocks: NotionBlock[] = toBlocks(issue.body)) {
@@ -157,9 +164,9 @@ export interface ExistingPage {
 
 export interface StatusOptions {
   names: string[];
-  /** 진행 중 그룹의 첫 상태 */
+  /** 진행 중 그룹의 "진행 중" (없으면 그룹 첫 상태) */
   inProgress: string | null;
-  /** 완료 그룹의 첫 상태 */
+  /** 완료 그룹의 "완료" (없으면 그룹 첫 상태) */
   complete: string | null;
 }
 
@@ -177,8 +184,8 @@ function readText(property: { [key: string]: unknown } | undefined): string {
 }
 
 function toExistingPage(page: PageObject): ExistingPage {
-  const status = page.properties["상태"]?.status as { name?: string } | null | undefined;
-  return { id: page.id, url: page.url, title: readText(page.properties["제목"]), status: status?.name ?? null };
+  const status = page.properties[PROP.status]?.status as { name?: string } | null | undefined;
+  return { id: page.id, url: page.url, title: readText(page.properties[PROP.title]), status: status?.name ?? null };
 }
 
 /** 상태(status) 컬럼의 옵션. 상태 컬럼이 없으면 빈 값. */
@@ -190,35 +197,33 @@ export async function getStatusOptions(env: NotionEnv, fetchImpl: typeof fetch =
     undefined,
     fetchImpl,
   );
-  const status = db.properties?.["상태"]?.status as
+  const status = db.properties?.[PROP.status]?.status as
     | { options?: { id: string; name: string }[]; groups?: { option_ids?: string[] }[] }
     | undefined;
   const options = status?.options ?? [];
-  // Notion 상태 그룹은 순서가 고정: 할 일 → 진행 중 → 완료
-  const firstOf = (groupIndex: number) => {
-    const id = status?.groups?.[groupIndex]?.option_ids?.[0];
-    return options.find((option) => option.id === id)?.name ?? null;
+  // Notion 상태 그룹은 순서가 고정: 할 일 → 진행 중 → 완료.
+  // 같은 이름(진행 중/완료)의 옵션이 그룹에 있으면 그것을, 없으면 그룹의 첫 옵션을 고른다 (완료 그룹의 "미진행" 같은 옵션 회피).
+  const pick = (groupIndex: number, preferred: string) => {
+    const ids = status?.groups?.[groupIndex]?.option_ids ?? [];
+    const inGroup = ids.map((id) => options.find((option) => option.id === id)).filter((option) => option !== undefined);
+    return (inGroup.find((option) => option.name === preferred) ?? inGroup[0])?.name ?? null;
   };
-  return { names: options.map((option) => option.name), inProgress: firstOf(1), complete: firstOf(2) };
+  return { names: options.map((option) => option.name), inProgress: pick(1, "진행 중"), complete: pick(2, "완료") };
 }
 
-/** 같은 일감 또는 같은 원문 링크로 등록된 페이지를 찾는다. */
+/** 같은 레드마인 일감으로 등록된 페이지를 찾는다. */
 export async function findExistingPages(
-  issue: Pick<Issue, "workItemUrl" | "sourceUrl">,
+  issue: Pick<Issue, "workItemUrl">,
   env: NotionEnv,
   fetchImpl: typeof fetch = fetch,
 ): Promise<ExistingPage[]> {
-  const filters = [
-    ...(issue.workItemUrl ? [{ property: "일감", url: { equals: issue.workItemUrl } }] : []),
-    ...(issue.sourceUrl ? [{ property: "원문 링크", url: { equals: issue.sourceUrl } }] : []),
-  ];
-  if (filters.length === 0) return [];
+  if (!issue.workItemUrl) return [];
 
   const data = await notionRequest<{ results?: PageObject[] }>(
     env,
     "POST",
     `/databases/${env.NOTION_DATABASE_ID}/query`,
-    { filter: { or: filters }, page_size: 5, sorts: [{ timestamp: "created_time", direction: "descending" }] },
+    { filter: { property: PROP.workItem, url: { equals: issue.workItemUrl } }, page_size: 5, sorts: [{ timestamp: "created_time", direction: "descending" }] },
     fetchImpl,
   );
   return (data.results ?? []).map(toExistingPage);
@@ -227,23 +232,25 @@ export async function findExistingPages(
 const mergeList = (current: string, added: string) =>
   [...new Set([...current.split(","), ...added.split(",")].map((item) => item.trim()).filter(Boolean))].join(", ");
 
-/** 업데이트 시 바꿀 속성: 상태, 비어 있던 일감/MR, 브랜치·관련 파일·영역은 합친다. */
+/** 업데이트 시 바꿀 속성: 상태, 비어 있던 레드마인/MR 링크·FO/BO, 브랜치 명·관련 파일·영역은 합친다. */
 export function buildUpdateProperties(page: PageObject, issue: Issue, status: string | null) {
   const props = page.properties;
   const url = (name: string) => (props[name]?.url as string | null | undefined) ?? null;
-  const areas = ((props["영역"]?.multi_select as { name: string }[] | undefined) ?? []).map((option) => option.name);
+  const areas = ((props[PROP.areas]?.multi_select as { name: string }[] | undefined) ?? []).map((option) => option.name);
 
   const update: Record<string, unknown> = {};
-  if (status) update["상태"] = { status: { name: status } };
-  if (issue.workItemUrl && !url("일감") && "일감" in props) update["일감"] = { url: issue.workItemUrl };
-  if (issue.mrUrl && !url("MR") && "MR" in props) update["MR"] = { url: issue.mrUrl };
-  for (const [name, value] of [["브랜치", issue.branch], ["관련 파일", issue.files]] as const) {
+  if (status) update[PROP.status] = { status: { name: status } };
+  for (const [name, value] of [[PROP.workItem, issue.workItemUrl], [PROP.mr, issue.mrUrl]] as const) {
+    if (value && !url(name) && name in props) update[name] = { url: value };
+  }
+  if (issue.platform && !props[PROP.platform]?.select && PROP.platform in props) update[PROP.platform] = select(issue.platform);
+  for (const [name, value] of [[PROP.branch, issue.branch], [PROP.files, issue.files]] as const) {
     if (!value || !(name in props)) continue;
     const merged = mergeList(readText(props[name]), value);
     if (merged !== readText(props[name])) update[name] = { rich_text: plainText(merged) };
   }
   const newAreas = issue.areas.filter((area) => !areas.includes(area));
-  if (newAreas.length > 0 && "영역" in props) update["영역"] = { multi_select: [...areas, ...newAreas].map((name) => ({ name })) };
+  if (newAreas.length > 0 && PROP.areas in props) update[PROP.areas] = { multi_select: [...areas, ...newAreas].map((name) => ({ name })) };
   return update;
 }
 

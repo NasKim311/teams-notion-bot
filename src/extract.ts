@@ -1,4 +1,6 @@
-// 본문에서 개발 정보를 뽑는다: 일감(Redmine), MR, 브랜치, 관련 파일(+줄 번호), 영역(모듈).
+// 본문에서 개발 정보를 뽑는다: 일감(Redmine), MR, 브랜치, 관련 파일(+줄 번호), 영역(모듈), FO/BO.
+
+import type { Platform } from "./types";
 
 export interface DevInfo {
   workItemUrl: string | null;
@@ -6,6 +8,7 @@ export interface DevInfo {
   branch: string;
   files: string;
   areas: string[];
+  platform: Platform | null;
 }
 
 const URL_PATTERN = /https?:\/\/[^\s<>"'\])]+/g;
@@ -17,6 +20,8 @@ const FILE_PATH = /(?:[\w.-]+\/)*[\w.-]+\.(?:tsx?|jsx?|mjs|cjs|vue|scss|css|less
 const LINE_REF = /^\s*(?:의\s*)?(\d+)\s*(?:[~-]\s*(\d+))?\s*(?:번째\s*)?줄/;
 const LINE_REF_ONLY = /^\s*(\d+)\s*(?:[~-]\s*(\d+))?\s*(?:번째\s*)?줄\s*$/;
 const VIEW_MODULE = /(?:^|\/)views?\/([a-z][\w-]{1,20})(?:\/|$)/i;
+// 영문자에 붙지 않은 대문자 FO/BO ("BO에서", "[BO]") 또는 한글 명칭
+const PLATFORM = /(?<![A-Za-z])(FO|BO)(?![A-Za-z])|(프론트\s*오피스)|(백\s*오피스)/;
 const ROUTE_PAGE = /(?:^|\s)\/([a-z]{2,15})\/[\w/-]*\s*페이지/;
 
 const MAX_FILES = 10;
@@ -71,6 +76,14 @@ export function extractWorkItem(text: string, redmineIssueUrl?: string): string 
   return `${redmineIssueUrl.replace(/\/?$/, "/")}${number}`;
 }
 
+/** 처음 나온 FO/BO 언급. URL 안의 글자(예: ".bo.")는 보지 않는다. */
+export function extractPlatform(text: string): Platform | null {
+  const match = text.replace(URL_PATTERN, " ").match(PLATFORM);
+  if (!match) return null;
+  if (match[1]) return match[1] as Platform;
+  return match[2] ? "FO" : "BO";
+}
+
 export function extractDevInfo(text: string, redmineIssueUrl?: string): DevInfo {
   const files = extractFiles(text);
   const branches = [...new Set([...text.replace(URL_PATTERN, " ").matchAll(BRANCH)].map((m) => trimPunctuation(m[0])))];
@@ -81,5 +94,6 @@ export function extractDevInfo(text: string, redmineIssueUrl?: string): DevInfo 
     branch: branches.join(", "),
     files: files.join(", "),
     areas: extractAreas(text, files),
+    platform: extractPlatform(text),
   };
 }

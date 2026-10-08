@@ -144,7 +144,7 @@ describe("POST /api/preview", () => {
           title: "저장 실패",
           type: "버그",
           author: "홍길동",
-          sourceUrl: LINK,
+          platform: null,
           body: "[버그] 저장 실패\n브랜치명: feature/fix-#11660\n상세",
           workItemUrl: "http://redmine.example.com/issues/11660", // REDMINE_ISSUE_URL + 번호
           mrUrl: null,
@@ -170,15 +170,15 @@ describe("POST /api/preview", () => {
     ]);
   });
 
-  it("단서(일감/원문 링크)가 없으면 Notion을 조회하지 않는다", async () => {
-    const data = (await (await call(post("/api/preview", { text: "그냥 문장" }))).json()) as Record<string, unknown>;
+  it("레드마인 일감이 없으면 Notion을 조회하지 않는다 (Teams 링크만 있어도)", async () => {
+    const data = (await (await call(post("/api/preview", { text: `그냥 문장\n${LINK}` }))).json()) as Record<string, unknown>;
     expect(data).toMatchObject({ lookups: [{ matches: [], suggestedStatus: null }], statusOptions: [] });
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("기존 이슈 조회가 실패해도 미리보기는 된다", async () => {
     fetchSpy.mockResolvedValue(Response.json({ code: "restricted_resource" }, { status: 403 }));
-    const res = await call(post("/api/preview", { text: `${LINK}\n내용` }));
+    const res = await call(post("/api/preview", { text: "http://redmine.example.com/issues/1\n내용" }));
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ lookupError: expect.stringContaining("새 이슈로만") });
   });
@@ -203,7 +203,7 @@ describe("POST /api/preview", () => {
 });
 
 describe("POST /api/issues", () => {
-  const issue = { title: "저장 실패", type: "버그", author: "홍길동", sourceUrl: LINK, body: "상세" };
+  const issue = { title: "저장 실패", type: "버그", author: "홍길동", platform: "FO", body: "상세" };
 
   it("Notion 페이지를 만들고 url을 돌려준다 (201)", async () => {
     fetchSpy.mockResolvedValue(Response.json({ object: "page", id: "page-1", url: NOTION_URL }));
@@ -216,7 +216,8 @@ describe("POST /api/issues", () => {
     expect(url).toBe("https://api.notion.com/v1/pages");
     const sent = JSON.parse(init?.body as string);
     expect(sent.parent).toEqual({ database_id: env.NOTION_DATABASE_ID });
-    expect(sent.properties["원문 링크"]).toEqual({ url: LINK });
+    expect(sent.properties["작성자"]).toEqual({ select: { name: "홍길동" } });
+    expect(sent.properties["FO/BO"]).toEqual({ select: { name: "FO" } });
   });
 
   it("검증 실패 → 400 + 메시지, Notion 호출 없음", async () => {
@@ -247,7 +248,7 @@ describe("POST /api/issues", () => {
 });
 
 describe("POST /api/issues/update", () => {
-  const issue = { title: "후속", type: "버그", author: "김개발", sourceUrl: null, body: "수정 완료" };
+  const issue = { title: "후속", type: "버그", author: "김개발", platform: null, body: "수정 완료" };
 
   it("기존 페이지에 업데이트를 붙이고 url을 돌려준다", async () => {
     mockNotion();
@@ -324,7 +325,7 @@ describe("POST /api/uploads", () => {
 
 describe("스크린샷 첨부", () => {
   const IMAGE_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
-  const issue = { title: "화면 깨짐", type: "버그", author: "김개발", sourceUrl: null, body: "본문" };
+  const issue = { title: "화면 깨짐", type: "버그", author: "김개발", platform: null, body: "본문" };
 
   it("새 이슈 본문 끝에 이미지 블록", async () => {
     mockNotion();

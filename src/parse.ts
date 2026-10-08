@@ -7,8 +7,8 @@ import type { Issue, IssueType } from "./types";
 //
 //   [버그] 첫 줄은 제목
 //   작성자: 홍길동
-//   링크: https://teams.microsoft.com/l/message/...
 //   본문...
+// Teams 메시지 링크(링크:/원문: 줄, 링크만 있는 줄)는 저장하지 않고 본문에서 뺀다.
 
 const TITLE_MAX = 50;
 const NAME_MAX = 40;
@@ -25,7 +25,7 @@ const OPS_SIGNALS = /할당|운영팀|운영\s*일감/;
 const IMPROVEMENT_SIGNALS = /개선|제안|리팩[토터]링|가독성|나을\s*것|좋을\s*것|주석/;
 
 const FIELD_LINE = /^(제목|작성자|원문 링크|원문|링크)\s*[:：]\s*(.*)$/;
-const TEAMS_LINK = /https:\/\/teams\.(?:microsoft\.com|cloud\.microsoft)\/l\/message\/[^\s<>"'\])]+/;
+const TEAMS_LINK = /^https:\/\/teams\.(?:microsoft\.com|cloud\.microsoft)\/l\/message\/[^\s<>"'\])]+$/;
 const ANY_LINK = /https?:\/\/[^\s<>"'\])]+/;
 
 // Teams 머리글: "홍길동 오후 4:30", "[오후 4:30] 홍길동", "홍길동(사원) - 유젠\n2026-09-30 오후 1:25", "오후 5:20\n홍길동(사원) - 유젠"
@@ -221,7 +221,6 @@ export interface ParseOptions {
 interface Prepared {
   title?: string;
   author?: string;
-  sourceUrl?: string;
   /** 필드 줄을 빼고 머리글을 한 줄로 정리한 본문 줄 */
   lines: string[];
 }
@@ -232,7 +231,6 @@ function prepare(raw: string): Prepared {
 
   let title: string | undefined;
   let author: string | undefined;
-  let sourceUrl: string | undefined;
   const bodyLines: string[] = [];
 
   for (const line of text.split("\n")) {
@@ -242,21 +240,20 @@ function prepare(raw: string): Prepared {
       const [, key, value = ""] = field;
       if (key === "제목") title ??= value.trim() || undefined;
       else if (key === "작성자") author ??= value.trim() || undefined;
-      else sourceUrl ??= value.match(TEAMS_LINK)?.[0] ?? value.match(ANY_LINK)?.[0];
       continue;
     }
-    // 링크만 있는 줄은 원문 링크로 쓰고 본문에서 뺀다.
-    const lone = trimmed.match(TEAMS_LINK);
-    if (lone && lone[0] === trimmed) {
-      sourceUrl ??= trimmed;
-      continue;
-    }
+    if (TEAMS_LINK.test(trimmed)) continue;
     bodyLines.push(line);
   }
-  sourceUrl ??= text.match(TEAMS_LINK)?.[0];
 
   const rewritten = rewriteHeaders(bodyLines);
-  return { title, author: author ?? rewritten.author, sourceUrl, lines: rewritten.lines };
+  return { title, author: author ?? rewritten.author, lines: rewritten.lines };
+}
+
+/** Teams 표시 이름에서 이름만 남긴다: "정주영(사원) - 유젠" → "정주영". Notion select 옵션이라 쉼표는 뺀다. */
+export function personName(author: string): string {
+  const name = author.split(/\(|\s-\s/)[0]?.replace(/,/g, " ").replace(/\s+/g, " ").trim();
+  return name || author.replace(/,/g, " ").trim();
 }
 
 function buildIssue(lines: string[], prepared: Prepared, options: ParseOptions): Issue {
@@ -267,8 +264,7 @@ function buildIssue(lines: string[], prepared: Prepared, options: ParseOptions):
     title: title ? makeTitle(title) : makeIssueTitle(lines),
     type: classify(`${title ?? ""}\n${body}`),
     body,
-    author: prepared.author ?? UNKNOWN_AUTHOR,
-    sourceUrl: prepared.sourceUrl ?? null,
+    author: prepared.author ? personName(prepared.author) : UNKNOWN_AUTHOR,
     ...extractDevInfo(`${title ?? ""}\n${body}`, options.redmineIssueUrl),
   };
 }

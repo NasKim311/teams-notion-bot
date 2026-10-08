@@ -9,12 +9,17 @@ export interface Env {
 export const ISSUE_TYPES = ["버그", "개선", "운영", "기타"] as const;
 export type IssueType = (typeof ISSUE_TYPES)[number];
 
+export const PLATFORMS = ["FO", "BO"] as const;
+export type Platform = (typeof PLATFORMS)[number];
+
 export interface Issue {
   title: string;
   type: IssueType;
   body: string;
+  /** 작성자 이름 (Notion select 옵션) */
   author: string;
-  sourceUrl: string | null;
+  /** FO(프론트 오피스) / BO(백오피스) */
+  platform: Platform | null;
   /** 일감 (Redmine) */
   workItemUrl: string | null;
   /** MR (GitLab merge request) */

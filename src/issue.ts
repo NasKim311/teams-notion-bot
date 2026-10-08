@@ -1,5 +1,5 @@
 import { UNKNOWN_AUTHOR } from "./parse";
-import { ISSUE_TYPES, type Issue, type IssueType } from "./types";
+import { ISSUE_TYPES, type Issue, type IssueType, PLATFORMS, type Platform } from "./types";
 
 // 사용자가 미리보기에서 수정해 보낸 값을 검증한다.
 
@@ -18,6 +18,12 @@ const fail = (error: string) => ({ ok: false as const, error });
 
 function isIssueType(value: unknown): value is IssueType {
   return typeof value === "string" && (ISSUE_TYPES as readonly string[]).includes(value);
+}
+
+/** 빈 값 → null, FO/BO → 그대로, 그 외 → undefined(오류) */
+function normalizePlatform(value: unknown): Platform | null | undefined {
+  if (value === null || value === undefined || value === "") return null;
+  return typeof value === "string" && (PLATFORMS as readonly string[]).includes(value) ? (value as Platform) : undefined;
 }
 
 /** 빈 값 → null, http(s) URL → 문자열, 그 외 → undefined(오류) */
@@ -60,18 +66,20 @@ export function validateIssue(input: unknown): ValidationResult<Issue> {
 
   if (!isIssueType(data.type)) return fail("유형이 올바르지 않습니다.");
 
-  const author = typeof data.author === "string" ? data.author.trim() : "";
+  // 작성자는 Notion select 옵션이라 쉼표를 쓸 수 없다.
+  const author = typeof data.author === "string" ? data.author.replace(/,/g, " ").replace(/\s+/g, " ").trim() : "";
   if (length(author) > AUTHOR_MAX) return fail(`작성자는 ${AUTHOR_MAX}자 이하로 입력해주세요.`);
 
-  const sourceUrl = normalizeUrl(data.sourceUrl);
-  if (sourceUrl === undefined) return fail("원문 링크는 http(s) 주소여야 합니다.");
+  const platform = normalizePlatform(data.platform);
+  if (platform === undefined) return fail("FO/BO 값이 올바르지 않습니다.");
+
   const workItemUrl = normalizeUrl(data.workItemUrl);
-  if (workItemUrl === undefined) return fail("일감은 http(s) 주소여야 합니다.");
+  if (workItemUrl === undefined) return fail("레드마인 링크는 http(s) 주소여야 합니다.");
   const mrUrl = normalizeUrl(data.mrUrl);
-  if (mrUrl === undefined) return fail("MR은 http(s) 주소여야 합니다.");
+  if (mrUrl === undefined) return fail("MR 링크는 http(s) 주소여야 합니다.");
 
   const branch = optionalText(data.branch);
-  if (branch === undefined) return fail("브랜치가 너무 깁니다.");
+  if (branch === undefined) return fail("브랜치 명이 너무 깁니다.");
   const files = optionalText(data.files);
   if (files === undefined) return fail("관련 파일이 너무 깁니다.");
   const areas = normalizeAreas(data.areas);
@@ -86,7 +94,7 @@ export function validateIssue(input: unknown): ValidationResult<Issue> {
       title,
       type: data.type,
       author: author || UNKNOWN_AUTHOR,
-      sourceUrl,
+      platform,
       body,
       workItemUrl,
       mrUrl,

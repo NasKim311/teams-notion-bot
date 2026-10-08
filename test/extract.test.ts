@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractAreas, extractDevInfo, extractFiles, extractWorkItem } from "../src/extract";
+import { extractAreas, extractDevInfo, extractFiles, extractPlatform, extractWorkItem } from "../src/extract";
 
 const REDMINE = "http://redmine.example.com/issues/";
 
@@ -81,10 +81,38 @@ describe("extractDevInfo", () => {
       branch: "feature/uzen-search-#11660, feature/multilingual_fe_ref_path",
       files: "src/views/srch/pages/Result.tsx",
       areas: ["srch"],
+      platform: null,
     });
   });
 
   it("아무것도 없으면 빈 값", () => {
-    expect(extractDevInfo("점심 메뉴", REDMINE)).toEqual({ workItemUrl: null, mrUrl: null, branch: "", files: "", areas: [] });
+    expect(extractDevInfo("점심 메뉴", REDMINE)).toEqual({
+      workItemUrl: null,
+      mrUrl: null,
+      branch: "",
+      files: "",
+      areas: [],
+      platform: null,
+    });
+  });
+});
+
+describe("extractPlatform", () => {
+  it.each([
+    ["BO 쿠폰 화면 아이콘 없음", "BO"],
+    ["[FO] 상품 상세 깨짐", "FO"],
+    ["FO에서는 정상인데 BO에서 오류", "FO"], // 처음 나온 것
+    ["백오피스 주문 목록", "BO"],
+    ["프론트 오피스 메인", "FO"],
+  ])("%s → %s", (text, expected) => {
+    expect(extractPlatform(text)).toBe(expected);
+  });
+
+  it.each([
+    ["일감 http://redmine.com.bo.shinsegae.com/issues/1 확인"], // URL 안의 bo
+    ["BOOK, FOO, ABO 같은 단어"],
+    ["프론트 작업"],
+  ])("없음: %s", (text) => {
+    expect(extractPlatform(text)).toBeNull();
   });
 });

@@ -52,10 +52,10 @@ interface Lookup {
   suggestedStatus: string | null;
 }
 
-/** 이슈마다 같은 일감/원문 링크의 기존 페이지를 찾는다. 실패해도 미리보기는 계속한다. */
+/** 이슈마다 같은 레드마인 일감의 기존 페이지를 찾는다. 실패해도 미리보기는 계속한다. */
 async function lookupExisting(issues: Issue[], env: Env): Promise<{ lookups: Lookup[]; statusOptions: string[]; lookupError?: string }> {
   const empty = { lookups: issues.map(() => ({ matches: [], suggestedStatus: null })), statusOptions: [] };
-  if (!issues.some((issue) => issue.workItemUrl || issue.sourceUrl)) return empty;
+  if (!issues.some((issue) => issue.workItemUrl)) return empty;
 
   try {
     const [status, matches] = await Promise.all([

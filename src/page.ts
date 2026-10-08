@@ -1,12 +1,11 @@
 // 붙여넣기 입력 화면. 외부 리소스 없이 인라인 CSS/JS만 사용하고, CSP nonce로 인라인 실행을 허용한다.
 // 사용자 입력은 항상 textContent/value로만 다룬다 (innerHTML 금지).
 
-import { ISSUE_TYPES } from "./types";
+import { ISSUE_TYPES, PLATFORMS } from "./types";
 
 const TEMPLATE = [
   "[버그] 한 줄 요약 (첫 줄이 제목)",
   "작성자: 홍길동",
-  "링크: https://teams.microsoft.com/l/message/...",
   "",
   "이슈 사항 : src/views/.../Page.tsx 75번째 줄",
   "무엇이 문제인지",
@@ -37,6 +36,7 @@ const escapeHtml = (text: string) =>
 
 export function renderPage(nonce: string): string {
   const typeOptions = ISSUE_TYPES.map((t) => `<option value="${t}">${t}</option>`).join("");
+  const platformOptions = ["", ...PLATFORMS].map((p) => `<option value="${p}">${p || "-"}</option>`).join("");
 
   return `<!doctype html>
 <html lang="ko">
@@ -127,7 +127,7 @@ export function renderPage(nonce: string): string {
       <pre id="template">${escapeHtml(TEMPLATE)}</pre>
       <p class="hint">이슈 사항/기대 동작/이슈 원인 같은 라벨이나 [ 이슈 ] 같은 대괄호 라벨은 Notion에서 소제목이 됩니다.
         "이슈 1)", "이슈 2)"처럼 여러 이슈를 한 번에 붙이면 나눠서 등록할 수 있어요.
-        작성자:·링크: 줄은 본문에서 빠지고, 링크는 Teams 메시지 ••• → 링크 복사로 얻을 수 있어요.</p>
+        작성자: 줄은 본문에서 빠지고, Teams 메시지 링크는 저장하지 않아요.</p>
       <button type="button" id="useTemplate">양식 넣기</button>
     </details>
     <div class="images">
@@ -163,7 +163,7 @@ export function renderPage(nonce: string): string {
       <label class="check hint" data-role="skipWrap"><input type="checkbox" data-role="skip"> 이 이슈는 등록 안 함</label>
     </div>
     <div class="match" data-role="match" hidden>
-      <div>🔎 같은 일감/원문 링크로 등록된 이슈가 있어요. <a data-role="matchLink" target="_blank" rel="noopener noreferrer">열기</a></div>
+      <div>🔎 같은 레드마인 일감으로 등록된 이슈가 있어요. <a data-role="matchLink" target="_blank" rel="noopener noreferrer">열기</a></div>
       <div class="grid2">
         <label>등록 방식<select data-role="target"></select></label>
         <label data-role="statusWrap">상태 변경<select data-role="status"></select></label>
@@ -176,10 +176,10 @@ export function renderPage(nonce: string): string {
       </div>
       <div class="grid2">
         <label>작성자<input data-field="author" maxlength="100"></label>
-        <label>원문 링크<input data-field="sourceUrl" type="url" placeholder="https://teams.microsoft.com/l/message/..."></label>
-        <label>일감<input data-field="workItemUrl" type="url" placeholder="Redmine 일감 링크"></label>
-        <label>MR<input data-field="mrUrl" type="url" placeholder="GitLab MR 링크"></label>
-        <label>브랜치<input data-field="branch" maxlength="2000"></label>
+        <label>FO/BO<select data-field="platform">${platformOptions}</select></label>
+        <label>레드마인 링크<input data-field="workItemUrl" type="url" placeholder="Redmine 일감 링크"></label>
+        <label>MR 링크<input data-field="mrUrl" type="url" placeholder="GitLab MR 링크"></label>
+        <label>브랜치 명<input data-field="branch" maxlength="2000"></label>
         <label>영역<input data-field="areas" placeholder="쉼표로 구분 (예: fit, evt)"></label>
       </div>
       <label>관련 파일<input data-field="files" maxlength="2000" placeholder="쉼표로 구분 (예: src/views/fit/pages/FitDetail.tsx:75)"></label>
@@ -198,7 +198,7 @@ export function renderPage(nonce: string): string {
 (function () {
   var KEY = "issueFormPassword";
   var $ = function (id) { return document.getElementById(id); };
-  var fields = ["title", "type", "author", "sourceUrl", "workItemUrl", "mrUrl", "branch", "files", "areas", "body"];
+  var fields = ["title", "type", "author", "platform", "workItemUrl", "mrUrl", "branch", "files", "areas", "body"];
   var cards = [];
   var busy = false;
 
