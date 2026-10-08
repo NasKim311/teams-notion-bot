@@ -24,6 +24,16 @@ GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → �
 - 파싱/검증 로직은 순수 함수로 작성, index.ts는 조립만
 - Notion 컬럼 이름·타입은 `src/notion.ts`의 `PROP`/`PROP_TYPES`에서만 관리
 - 커밋 전 `npm run typecheck && npm test` 통과 필수. 커밋은 작업 단위로
+- **개선·버그 수정으로 동작이 바뀌면 관련 문서와 스킬도 같은 커밋에서 함께 고친다.** 코드만 바뀌고 문서·스킬이 옛 내용으로 남으면 안 된다. 커밋 전에 아래 표에서 해당 항목을 확인한다
+
+  | 바뀐 것 | 함께 고칠 곳 |
+  |---|---|
+  | 결정·정책 (제목 규칙, 저장 여부, 분류 기준 등) | `docs/decisions.md` (날짜·이유 포함) |
+  | Notion 컬럼·연결 권한·스크립트 사용법 | `docs/notion.md`, `.claude/skills/notion-sync`, `.claude/skills/retitle` |
+  | 배포·시크릿·환경 변수·운영 주소 | `docs/operations.md`, `.claude/skills/deploy` |
+  | 새로 겪은 함정·해결 방법 | `docs/gotchas.md` |
+  | 흐름·모듈·명령어·규칙 | 이 파일 (CLAUDE.md) |
+  | 스킬 절차에 나오는 명령·파일·함수 이름 | 해당 `.claude/skills/*/SKILL.md` |
 - **배포는 사용자가 지시할 때만** (`/deploy`). Notion 데이터 변경(페이지 수정 등)은 미리보기와 백업 먼저
 - 팀의 기존 "SSG FE 형상관리" Notion DB는 건드리지 않음
 
