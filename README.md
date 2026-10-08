@@ -157,5 +157,5 @@ copy .dev.vars.example .dev.vars   # FORM_PASSWORD, NOTION_TOKEN, NOTION_DATABAS
 | [docs/operations.md](docs/operations.md) | 운영 주소, 비밀값, 배포·로그 |
 | [docs/conventions.md](docs/conventions.md) | 코드 컨벤션 (이름·파일·주석·테스트 규칙) |
 | [docs/gotchas.md](docs/gotchas.md) | 개발하며 겪은 함정 |
-| [docs/roadmap.md](docs/roadmap.md) | 알려진 한계와 개선 후보 |
+| [docs/backlog.md](docs/backlog.md) | 버그·개선 목록 (번호·상태·우선순위) |
 | [CLAUDE.md](CLAUDE.md) | Claude Code 작업 규칙 (스킬: `.claude/skills/` — notion-sync, retitle, restructure, deploy) |

@@ -37,7 +37,7 @@ GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → �
   | 흐름·모듈·명령어·규칙 | 이 파일 (CLAUDE.md) |
   | 코드 컨벤션·Biome 설정·예외 규칙 | `docs/conventions.md`, `biome.json` |
   | 사용자에게 보이는 기능·사용법·입력 양식·설치·명령어 | `README.md` |
-  | 알려진 한계·개선 후보 (해결하면 지움) | `docs/roadmap.md` |
+  | 버그·개선 항목 (발견·진행·해결) | `docs/backlog.md` (번호·상태 갱신, 해결하면 "해결됨"으로 옮기고 커밋 해시 기록) |
   | 스킬 절차에 나오는 명령·파일·함수 이름 | 해당 `.claude/skills/*/SKILL.md` |
 - **배포는 사용자가 지시할 때만** (`/deploy`). Notion 데이터 변경(페이지 수정 등)은 미리보기와 백업 먼저
 - 팀의 기존 "SSG FE 형상관리" Notion DB는 건드리지 않음
@@ -47,7 +47,7 @@ GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → �
 - [docs/operations.md](docs/operations.md): 운영 주소, 시크릿, 배포·로그
 - [docs/gotchas.md](docs/gotchas.md): 겪었던 함정 (compatibility_date, Windows 프로세스, NBSP, 이스케이프 치환 등)
 - [docs/conventions.md](docs/conventions.md): 코드 컨벤션 (위에서 불러옴)
-- [docs/roadmap.md](docs/roadmap.md): 알려진 한계와 개선 후보
+- [docs/backlog.md](docs/backlog.md): 버그·개선 목록 (B=버그, I=개선, 상태·우선순위·해결 커밋). 작업 전에 관련 항목을 확인하고, 커밋 메시지에 번호를 넣는다 (예: `fix(B1): …`)
 - [README.md](README.md): 사람용 소개·사용법·구조·개발 방법
 
 ## 스킬 (.claude/skills)
