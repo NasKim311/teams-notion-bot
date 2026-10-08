@@ -142,3 +142,121 @@ describe("notionErrorMessage", () => {
     expect(notionErrorMessage(new Error("x"))).toContain("잠시 후 다시 시도");
   });
 });
+
+describe("기존 이슈 찾기/업데이트", () => {
+  const STATUS_SCHEMA = {
+    properties: {
+      상태: {
+        type: "status",
+        status: {
+          options: [
+            { id: "s1", name: "시작 전" },
+            { id: "s2", name: "진행 중" },
+            { id: "s3", name: "완료" },
+          ],
+          groups: [{ option_ids: ["s1"] }, { option_ids: ["s2"] }, { option_ids: ["s3"] }],
+        },
+      },
+    },
+  };
+
+  const page = (overrides: Record<string, unknown> = {}) => ({
+    id: "11111111-2222-3333-4444-555555555555",
+    url: "https://www.notion.so/existing",
+    properties: {
+      제목: { type: "title", title: [{ plain_text: "기존 이슈" }] },
+      상태: { type: "status", status: { name: "진행 중" } },
+      일감: { type: "url", url: null },
+      MR: { type: "url", url: "http://gitlab.example.com/a/-/merge_requests/1" },
+      브랜치: { type: "rich_text", rich_text: [{ plain_text: "feature/a" }] },
+      "관련 파일": { type: "rich_text", rich_text: [] },
+      영역: { type: "multi_select", multi_select: [{ name: "fit" }] },
+      ...overrides,
+    },
+  });
+
+  it("getStatusOptions: 옵션 이름과 진행 중/완료 그룹의 첫 상태", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json(STATUS_SCHEMA));
+    await expect((await import("../src/notion")).getStatusOptions(env, fetchMock)).resolves.toEqual({
+      names: ["시작 전", "진행 중", "완료"],
+      inProgress: "진행 중",
+      complete: "완료",
+    });
+    expect(fetchMock.mock.calls[0]![0]).toBe("https://api.notion.com/v1/databases/db-123");
+  });
+
+  it("findExistingPages: 일감·원문 링크 OR 조건으로 조회", async () => {
+    const { findExistingPages } = await import("../src/notion");
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ results: [page()] }));
+
+    const found = await findExistingPages({ workItemUrl: "http://r/issues/1", sourceUrl: "https://t/1" }, env, fetchMock);
+    expect(found).toEqual([
+      { id: "11111111-2222-3333-4444-555555555555", url: "https://www.notion.so/existing", title: "기존 이슈", status: "진행 중" },
+    ]);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://api.notion.com/v1/databases/db-123/query");
+    expect(JSON.parse(init?.body as string).filter).toEqual({
+      or: [
+        { property: "일감", url: { equals: "http://r/issues/1" } },
+        { property: "원문 링크", url: { equals: "https://t/1" } },
+      ],
+    });
+  });
+
+  it("findExistingPages: 찾을 단서가 없으면 호출하지 않음", async () => {
+    const { findExistingPages } = await import("../src/notion");
+    const fetchMock = vi.fn<typeof fetch>();
+    await expect(findExistingPages({ workItemUrl: null, sourceUrl: null }, env, fetchMock)).resolves.toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("buildUpdateProperties: 상태 변경, 빈 일감만 채우고 MR은 유지, 목록은 합침", async () => {
+    const { buildUpdateProperties } = await import("../src/notion");
+    const update = buildUpdateProperties(
+      page(),
+      {
+        ...issue,
+        workItemUrl: "http://r/issues/9",
+        mrUrl: "http://gitlab.example.com/a/-/merge_requests/2",
+        branch: "feature/a, feature/b",
+        files: "src/A.tsx:1",
+        areas: ["fit", "evt"],
+      },
+      "완료",
+    );
+    expect(update).toEqual({
+      상태: { status: { name: "완료" } },
+      일감: { url: "http://r/issues/9" },
+      브랜치: { rich_text: [{ type: "text", text: { content: "feature/a, feature/b" } }] },
+      "관련 파일": { rich_text: [{ type: "text", text: { content: "src/A.tsx:1" } }] },
+      영역: { multi_select: [{ name: "fit" }, { name: "evt" }] },
+    });
+  });
+
+  it("buildUpdateProperties: 바뀔 게 없으면 빈 객체, DB에 없는 컬럼은 건드리지 않음", async () => {
+    const { buildUpdateProperties } = await import("../src/notion");
+    expect(buildUpdateProperties(page(), { ...issue, branch: "feature/a" }, null)).toEqual({});
+    expect(buildUpdateProperties({ id: "x", url: "u", properties: {} }, { ...issue, mrUrl: "http://m/1", areas: ["a"] }, null)).toEqual({});
+  });
+
+  it("appendUpdate: 페이지 조회 → 구분선·업데이트 제목·본문 추가 → 속성 갱신", async () => {
+    const { appendUpdate } = await import("../src/notion");
+    const fetchMock = vi.fn<typeof fetch>(async (input) =>
+      String(input).endsWith("/children") ? Response.json({}) : Response.json(page()),
+    );
+
+    const url = await appendUpdate(page().id, { ...issue, body: "수정 완료했습니다" }, "완료", env, fetchMock, new Date("2026-10-08T05:30:00Z"));
+    expect(url).toBe("https://www.notion.so/existing");
+
+    const calls = fetchMock.mock.calls.map(([u, init]) => `${init?.method} ${String(u).replace("https://api.notion.com/v1", "")}`);
+    expect(calls).toEqual([
+      `GET /pages/${page().id}`,
+      `PATCH /blocks/${page().id}/children`,
+      `PATCH /pages/${page().id}`,
+    ]);
+    const children = JSON.parse(fetchMock.mock.calls[1]![1]?.body as string).children;
+    expect(children.map((b: { type: string }) => b.type)).toEqual(["divider", "heading_3", "paragraph"]);
+    expect(children[1].heading_3.rich_text[0].text.content).toMatch(/^🔄 업데이트 · 김개발 · /);
+    expect(JSON.parse(fetchMock.mock.calls[2]![1]?.body as string)).toEqual({ properties: { 상태: { status: { name: "완료" } } } });
+  });
+});

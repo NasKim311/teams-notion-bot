@@ -1,12 +1,22 @@
 import { isAuthorized } from "./auth";
 import { BODY_MAX, validateIssue } from "./issue";
-import { createNotionPage, NotionError, notionErrorMessage } from "./notion";
+import {
+  appendUpdate,
+  createNotionPage,
+  type ExistingPage,
+  findExistingPages,
+  getStatusOptions,
+  NotionError,
+  notionErrorMessage,
+} from "./notion";
 import { contentSecurityPolicy, generateNonce, renderPage } from "./page";
-import { parseIssues } from "./parse";
+import { parseIssues, suggestStatusKind } from "./parse";
 import { html, json, jsonError, methodNotAllowed } from "./response";
-import type { Env } from "./types";
+import type { Env, Issue } from "./types";
 
 const REQUEST_MAX = 1_000_000;
+const PAGE_ID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
+const STATUS_MAX = 100;
 
 async function readJson(request: Request): Promise<unknown> {
   const raw = await request.text();
@@ -26,12 +36,42 @@ function logError(context: string, error: unknown): void {
   }
 }
 
+interface Lookup {
+  matches: ExistingPage[];
+  suggestedStatus: string | null;
+}
+
+/** 이슈마다 같은 일감/원문 링크의 기존 페이지를 찾는다. 실패해도 미리보기는 계속한다. */
+async function lookupExisting(issues: Issue[], env: Env): Promise<{ lookups: Lookup[]; statusOptions: string[]; lookupError?: string }> {
+  const empty = { lookups: issues.map(() => ({ matches: [], suggestedStatus: null })), statusOptions: [] };
+  if (!issues.some((issue) => issue.workItemUrl || issue.sourceUrl)) return empty;
+
+  try {
+    const [status, matches] = await Promise.all([
+      getStatusOptions(env),
+      Promise.all(issues.map((issue) => findExistingPages(issue, env))),
+    ]);
+    return {
+      statusOptions: status.names,
+      lookups: issues.map((issue, i) => {
+        const kind = suggestStatusKind(issue.body);
+        return { matches: matches[i] ?? [], suggestedStatus: kind ? status[kind] : null };
+      }),
+    };
+  } catch (error) {
+    logError("기존 이슈 조회 실패", error);
+    return { ...empty, lookupError: "기존 이슈를 조회하지 못했어요. 새 이슈로만 등록할 수 있어요." };
+  }
+}
+
 async function handlePreview(request: Request, env: Env): Promise<Response> {
   const data = (await readJson(request)) as { text?: unknown; split?: unknown } | undefined;
   const text = data?.text;
   if (typeof text !== "string" || text.trim() === "") return jsonError(400, "붙여넣은 내용이 없습니다.");
   if (text.length > BODY_MAX) return jsonError(400, "내용이 너무 깁니다.");
-  return json(parseIssues(text, { redmineIssueUrl: env.REDMINE_ISSUE_URL, split: data?.split !== false }));
+
+  const parsed = parseIssues(text, { redmineIssueUrl: env.REDMINE_ISSUE_URL, split: data?.split !== false });
+  return json({ ...parsed, ...(await lookupExisting(parsed.issues, env)) });
 }
 
 async function handleCreate(request: Request, env: Env): Promise<Response> {
@@ -47,9 +87,29 @@ async function handleCreate(request: Request, env: Env): Promise<Response> {
   }
 }
 
+async function handleUpdate(request: Request, env: Env): Promise<Response> {
+  const data = (await readJson(request)) as { pageId?: unknown; issue?: unknown; status?: unknown } | undefined;
+  if (typeof data?.pageId !== "string" || !PAGE_ID.test(data.pageId)) return jsonError(400, "기존 이슈 정보가 올바르지 않습니다.");
+
+  const status = data.status === null || data.status === undefined || data.status === "" ? null : data.status;
+  if (status !== null && (typeof status !== "string" || status.length > STATUS_MAX)) return jsonError(400, "상태 값이 올바르지 않습니다.");
+
+  const result = validateIssue(data.issue);
+  if (!result.ok) return jsonError(400, result.error);
+
+  try {
+    const url = await appendUpdate(data.pageId, result.value, status, env);
+    return json({ url });
+  } catch (error) {
+    logError("Notion 업데이트 실패", error);
+    return jsonError(502, notionErrorMessage(error));
+  }
+}
+
 const API_ROUTES: Record<string, (request: Request, env: Env) => Promise<Response>> = {
   "/api/preview": handlePreview,
   "/api/issues": handleCreate,
+  "/api/issues/update": handleUpdate,
 };
 
 export default {

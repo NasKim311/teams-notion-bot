@@ -66,6 +66,16 @@ export function classify(text: string): IssueType {
   return "기타";
 }
 
+const COMPLETE_SIGNALS = /수정하여\s*전달|수정\s*완료|해결\s*완료|처리\s*완료|배포\s*완료|머지\s*완료|merge_requests\/\d+|이슈\s*해결\s*[:：]/i;
+const IN_PROGRESS_SIGNALS = /브랜치\s*(명)?\s*[:：]|작업\s*중|진행\s*중|확인\s*중|티켓\s*생성|일감\s*생성/;
+
+/** 기존 이슈 업데이트 시 추천할 상태 단계. */
+export function suggestStatusKind(text: string): "complete" | "inProgress" | null {
+  if (COMPLETE_SIGNALS.test(text)) return "complete";
+  if (IN_PROGRESS_SIGNALS.test(text)) return "inProgress";
+  return null;
+}
+
 /** 유형 태그를 빼고 최대 50자로 자른다. */
 export function makeTitle(text: string): string {
   const title = text.replace(TYPE_TAG_ALL, "").replace(/\s+/g, " ").trim();

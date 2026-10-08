@@ -9,6 +9,7 @@ import {
   parsePastedText,
   rewriteHeaders,
   splitIssueLines,
+  suggestStatusKind,
 } from "../src/parse";
 
 const NBSP = String.fromCharCode(0xa0);
@@ -309,5 +310,18 @@ describe("splitIssueLines / parseIssues", () => {
 
   it("'이슈 1)은 ...' 같은 문장은 라벨로 보지 않는다", () => {
     expect(splitIssueLines(["이슈 1)은 디자인 요청하겠습니다.", "이슈 2)는 수정 부탁드려요."])).toBeNull();
+  });
+});
+
+describe("suggestStatusKind", () => {
+  it.each([
+    ["#11660 이슈 수정하여 전달드립니다.", "complete"],
+    ["Merge Request: http://gitlab.example.com/a/-/merge_requests/12101", "complete"],
+    ["이슈 해결: overflow-anchor: none", "complete"],
+    ["작업 브랜치명 : feature/a-#1", "inProgress"],
+    ["전달주신 이슈 티켓 생성하였습니다.", "inProgress"],
+    ["어떻게 파악하셨나요?", null],
+  ] as const)("%s → %s", (text, kind) => {
+    expect(suggestStatusKind(text)).toBe(kind);
   });
 });

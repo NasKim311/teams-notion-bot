@@ -113,6 +113,134 @@ export async function createNotionPage(issue: Issue, env: NotionEnv, fetchImpl: 
   return data.url;
 }
 
+// ── 기존 이슈 찾기 / 업데이트 ────────────────────────────────────────────
+
+export interface ExistingPage {
+  id: string;
+  url: string;
+  title: string;
+  status: string | null;
+}
+
+export interface StatusOptions {
+  names: string[];
+  /** 진행 중 그룹의 첫 상태 */
+  inProgress: string | null;
+  /** 완료 그룹의 첫 상태 */
+  complete: string | null;
+}
+
+interface PageObject {
+  id: string;
+  url: string;
+  properties: Record<string, { type: string; [key: string]: unknown }>;
+}
+
+type RichTextValue = { plain_text?: string }[];
+
+function readText(property: { [key: string]: unknown } | undefined): string {
+  const items = (property?.title ?? property?.rich_text) as RichTextValue | undefined;
+  return (items ?? []).map((item) => item.plain_text ?? "").join("");
+}
+
+function toExistingPage(page: PageObject): ExistingPage {
+  const status = page.properties["상태"]?.status as { name?: string } | null | undefined;
+  return { id: page.id, url: page.url, title: readText(page.properties["제목"]), status: status?.name ?? null };
+}
+
+/** 상태(status) 컬럼의 옵션. 상태 컬럼이 없으면 빈 값. */
+export async function getStatusOptions(env: NotionEnv, fetchImpl: typeof fetch = fetch): Promise<StatusOptions> {
+  const db = await notionRequest<{ properties?: Record<string, { type: string; status?: unknown }> }>(
+    env,
+    "GET",
+    `/databases/${env.NOTION_DATABASE_ID}`,
+    undefined,
+    fetchImpl,
+  );
+  const status = db.properties?.["상태"]?.status as
+    | { options?: { id: string; name: string }[]; groups?: { option_ids?: string[] }[] }
+    | undefined;
+  const options = status?.options ?? [];
+  // Notion 상태 그룹은 순서가 고정: 할 일 → 진행 중 → 완료
+  const firstOf = (groupIndex: number) => {
+    const id = status?.groups?.[groupIndex]?.option_ids?.[0];
+    return options.find((option) => option.id === id)?.name ?? null;
+  };
+  return { names: options.map((option) => option.name), inProgress: firstOf(1), complete: firstOf(2) };
+}
+
+/** 같은 일감 또는 같은 원문 링크로 등록된 페이지를 찾는다. */
+export async function findExistingPages(
+  issue: Pick<Issue, "workItemUrl" | "sourceUrl">,
+  env: NotionEnv,
+  fetchImpl: typeof fetch = fetch,
+): Promise<ExistingPage[]> {
+  const filters = [
+    ...(issue.workItemUrl ? [{ property: "일감", url: { equals: issue.workItemUrl } }] : []),
+    ...(issue.sourceUrl ? [{ property: "원문 링크", url: { equals: issue.sourceUrl } }] : []),
+  ];
+  if (filters.length === 0) return [];
+
+  const data = await notionRequest<{ results?: PageObject[] }>(
+    env,
+    "POST",
+    `/databases/${env.NOTION_DATABASE_ID}/query`,
+    { filter: { or: filters }, page_size: 5, sorts: [{ timestamp: "created_time", direction: "descending" }] },
+    fetchImpl,
+  );
+  return (data.results ?? []).map(toExistingPage);
+}
+
+const mergeList = (current: string, added: string) =>
+  [...new Set([...current.split(","), ...added.split(",")].map((item) => item.trim()).filter(Boolean))].join(", ");
+
+/** 업데이트 시 바꿀 속성: 상태, 비어 있던 일감/MR, 브랜치·관련 파일·영역은 합친다. */
+export function buildUpdateProperties(page: PageObject, issue: Issue, status: string | null) {
+  const props = page.properties;
+  const url = (name: string) => (props[name]?.url as string | null | undefined) ?? null;
+  const areas = ((props["영역"]?.multi_select as { name: string }[] | undefined) ?? []).map((option) => option.name);
+
+  const update: Record<string, unknown> = {};
+  if (status) update["상태"] = { status: { name: status } };
+  if (issue.workItemUrl && !url("일감") && "일감" in props) update["일감"] = { url: issue.workItemUrl };
+  if (issue.mrUrl && !url("MR") && "MR" in props) update["MR"] = { url: issue.mrUrl };
+  for (const [name, value] of [["브랜치", issue.branch], ["관련 파일", issue.files]] as const) {
+    if (!value || !(name in props)) continue;
+    const merged = mergeList(readText(props[name]), value);
+    if (merged !== readText(props[name])) update[name] = { rich_text: plainText(merged) };
+  }
+  const newAreas = issue.areas.filter((area) => !areas.includes(area));
+  if (newAreas.length > 0 && "영역" in props) update["영역"] = { multi_select: [...areas, ...newAreas].map((name) => ({ name })) };
+  return update;
+}
+
+function updateHeading(issue: Issue, now: Date): NotionBlock[] {
+  const when = now.toLocaleString("ko-KR", { timeZone: "Asia/Seoul", dateStyle: "short", timeStyle: "short" });
+  return [
+    { object: "block", type: "divider", divider: {} },
+    { object: "block", type: "heading_3", heading_3: { rich_text: plainText(`🔄 업데이트 · ${issue.author} · ${when}`) } },
+  ];
+}
+
+/** 기존 페이지 끝에 업데이트 내용을 붙이고 속성을 갱신한다. */
+export async function appendUpdate(
+  pageId: string,
+  issue: Issue,
+  status: string | null,
+  env: NotionEnv,
+  fetchImpl: typeof fetch = fetch,
+  now: Date = new Date(),
+): Promise<string> {
+  const page = await notionRequest<PageObject>(env, "GET", `/pages/${pageId}`, undefined, fetchImpl);
+  await appendBlocks(env, page.id, [...updateHeading(issue, now), ...toBlocks(issue.body)], fetchImpl);
+
+  const properties = buildUpdateProperties(page, issue, status);
+  if (Object.keys(properties).length > 0) {
+    await notionRequest(env, "PATCH", `/pages/${page.id}`, { properties }, fetchImpl);
+  }
+  return page.url;
+}
+
 /** 사용자에게 보여줄 오류 메시지. 토큰 등 비밀값은 포함하지 않는다. */
 export function notionErrorMessage(error: unknown): string {
   if (!(error instanceof NotionError)) return "Notion 등록 중 오류가 발생했어요. 잠시 후 다시 시도해주세요.";

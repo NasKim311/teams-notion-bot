@@ -34,6 +34,45 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const PAGE_ID = "11111111-2222-3333-4444-555555555555";
+const EXISTING = {
+  id: PAGE_ID,
+  url: "https://www.notion.so/existing",
+  properties: {
+    제목: { type: "title", title: [{ plain_text: "기존 이슈" }] },
+    상태: { type: "status", status: { name: "진행 중" } },
+  },
+};
+const STATUS_SCHEMA = {
+  properties: {
+    상태: {
+      type: "status",
+      status: {
+        options: [
+          { id: "s1", name: "시작 전" },
+          { id: "s2", name: "진행 중" },
+          { id: "s3", name: "완료" },
+        ],
+        groups: [{ option_ids: ["s1"] }, { option_ids: ["s2"] }, { option_ids: ["s3"] }],
+      },
+    },
+  },
+};
+
+/** Notion API 흉내: DB 조회/검색/페이지 생성·조회·수정/블록 추가 */
+function mockNotion(results: unknown[] = []) {
+  fetchSpy.mockImplementation(async (input, init) => {
+    const url = String(input).replace("https://api.notion.com/v1", "");
+    const method = init?.method ?? "GET";
+    if (url.endsWith("/query")) return Response.json({ results });
+    if (url.startsWith("/databases/")) return Response.json(STATUS_SCHEMA);
+    if (url.endsWith("/children")) return Response.json({});
+    if (url === "/pages" && method === "POST") return Response.json({ id: "page-1", url: NOTION_URL });
+    if (url.startsWith("/pages/")) return Response.json(EXISTING);
+    return new Response("unexpected", { status: 500 });
+  });
+}
+
 describe("GET / (입력 화면)", () => {
   it("비밀번호 없이 HTML을 내려주고, CSP nonce가 스크립트와 일치", async () => {
     const res = await call(request("/", { password: null }));
@@ -92,7 +131,8 @@ describe("라우팅/인증", () => {
 });
 
 describe("POST /api/preview", () => {
-  it("붙여넣은 텍스트를 Issue 초안으로 돌려준다", async () => {
+  it("붙여넣은 텍스트를 Issue 초안으로 돌려준다 (기존 이슈 없음)", async () => {
+    mockNotion([]);
     const res = await call(
       post("/api/preview", { text: `[버그] 저장 실패\n작성자: 홍길동\n${LINK}\n브랜치명: feature/fix-#11660\n상세` }),
     );
@@ -113,8 +153,34 @@ describe("POST /api/preview", () => {
           areas: [],
         },
       ],
+      lookups: [{ matches: [], suggestedStatus: "진행 중" }], // "브랜치명:" → 진행 중 추천
+      statusOptions: ["시작 전", "진행 중", "완료"],
     });
+  });
+
+  it("같은 일감의 기존 이슈를 찾아 알려준다", async () => {
+    mockNotion([EXISTING]);
+    const res = await call(post("/api/preview", { text: "http://redmine.example.com/issues/1\n수정하여 전달드립니다." }));
+    const data = (await res.json()) as { lookups: unknown[] };
+    expect(data.lookups).toEqual([
+      {
+        matches: [{ id: PAGE_ID, url: "https://www.notion.so/existing", title: "기존 이슈", status: "진행 중" }],
+        suggestedStatus: "완료",
+      },
+    ]);
+  });
+
+  it("단서(일감/원문 링크)가 없으면 Notion을 조회하지 않는다", async () => {
+    const data = (await (await call(post("/api/preview", { text: "그냥 문장" }))).json()) as Record<string, unknown>;
+    expect(data).toMatchObject({ lookups: [{ matches: [], suggestedStatus: null }], statusOptions: [] });
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("기존 이슈 조회가 실패해도 미리보기는 된다", async () => {
+    fetchSpy.mockResolvedValue(Response.json({ code: "restricted_resource" }, { status: 403 }));
+    const res = await call(post("/api/preview", { text: `${LINK}\n내용` }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ lookupError: expect.stringContaining("새 이슈로만") });
   });
 
   it("여러 이슈는 나눠서, split: false면 하나로", async () => {
@@ -177,5 +243,37 @@ describe("POST /api/issues", () => {
     const res = await call(post("/api/issues", issue));
     expect(res.status).toBe(502);
     expect(((await res.json()) as { error: string }).error).toContain("잠시 후 다시 시도");
+  });
+});
+
+describe("POST /api/issues/update", () => {
+  const issue = { title: "후속", type: "버그", author: "김개발", sourceUrl: null, body: "수정 완료" };
+
+  it("기존 페이지에 업데이트를 붙이고 url을 돌려준다", async () => {
+    mockNotion();
+    const res = await call(post("/api/issues/update", { pageId: PAGE_ID, issue, status: "완료" }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ url: "https://www.notion.so/existing" });
+
+    const calls = fetchSpy.mock.calls.map(([u, init]) => `${init?.method} ${String(u).replace("https://api.notion.com/v1", "")}`);
+    expect(calls).toEqual([`GET /pages/${PAGE_ID}`, `PATCH /blocks/${PAGE_ID}/children`, `PATCH /pages/${PAGE_ID}`]);
+  });
+
+  it.each<[string, unknown, string]>([
+    ["pageId 형식 오류", { pageId: "../databases/x", issue, status: null }, "기존 이슈"],
+    ["상태 타입 오류", { pageId: PAGE_ID, issue, status: 3 }, "상태"],
+    ["이슈 검증 실패", { pageId: PAGE_ID, issue: { ...issue, title: "" }, status: null }, "제목"],
+  ])("%s → 400", async (_label, body, message) => {
+    const res = await call(post("/api/issues/update", body));
+    expect(res.status).toBe(400);
+    expect(((await res.json()) as { error: string }).error).toContain(message);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("Notion 권한 부족 → 502 + 안내", async () => {
+    fetchSpy.mockResolvedValue(Response.json({ code: "restricted_resource" }, { status: 403 }));
+    const res = await call(post("/api/issues/update", { pageId: PAGE_ID, issue, status: null }));
+    expect(res.status).toBe(502);
+    expect(((await res.json()) as { error: string }).error).toContain("권한");
   });
 });

@@ -88,6 +88,8 @@ export function renderPage(nonce: string): string {
   .card-head strong { font-size: 15px; }
   .card.skipped .fields { opacity: .4; }
   .card.done { border-color: var(--ok); }
+  .match { background: var(--soft); border-radius: 8px; padding: 10px 12px; margin-top: 12px; }
+  .match a { color: var(--accent); }
   .result { margin-top: 10px; font-weight: 600; }
   .result.ok { color: var(--ok); }
   .result.error { color: var(--danger); }
@@ -147,6 +149,13 @@ export function renderPage(nonce: string): string {
     <div class="card-head">
       <strong data-role="index"></strong>
       <label class="check hint" data-role="skipWrap"><input type="checkbox" data-role="skip"> 이 이슈는 등록 안 함</label>
+    </div>
+    <div class="match" data-role="match" hidden>
+      <div>🔎 같은 일감/원문 링크로 등록된 이슈가 있어요. <a data-role="matchLink" target="_blank" rel="noopener noreferrer">열기</a></div>
+      <div class="grid2">
+        <label>등록 방식<select data-role="target"></select></label>
+        <label data-role="statusWrap">상태 변경<select data-role="status"></select></label>
+      </div>
     </div>
     <div class="fields">
       <div class="grid">
@@ -236,12 +245,50 @@ export function renderPage(nonce: string): string {
 
   function field(card, name) { return card.root.querySelector('[data-field="' + name + '"]'); }
 
-  function renderCards(issues) {
+  function option(value, text) {
+    var el = document.createElement("option");
+    el.value = value;
+    el.textContent = text;
+    return el;
+  }
+
+  function setupMatch(card, lookup, statusOptions) {
+    var matches = (lookup && lookup.matches) || [];
+    if (matches.length === 0) return;
+    var root = card.root;
+    var target = root.querySelector('[data-role="target"]');
+    var status = root.querySelector('[data-role="status"]');
+    var link = root.querySelector('[data-role="matchLink"]');
+
+    matches.forEach(function (m) {
+      target.appendChild(option(m.id, "기존 이슈에 추가: " + m.title + (m.status ? " (" + m.status + ")" : "")));
+    });
+    target.appendChild(option("", "새 이슈로 등록"));
+    status.appendChild(option("", "변경 안 함"));
+    statusOptions.forEach(function (name) { status.appendChild(option(name, name)); });
+    if (lookup.suggestedStatus) status.value = lookup.suggestedStatus;
+
+    function sync() {
+      var m = matches.filter(function (x) { return x.id === target.value; })[0];
+      link.hidden = !m;
+      if (m && /^https:[/][/]/.test(m.url)) link.href = m.url;
+      root.querySelector('[data-role="statusWrap"]').hidden = !m;
+    }
+    target.addEventListener("change", sync);
+    sync();
+    root.querySelector('[data-role="match"]').hidden = false;
+    card.target = target;
+    card.status = status;
+  }
+
+  function renderCards(data) {
+    var issues = data.issues;
     var list = $("cards");
     list.textContent = "";
     cards = issues.map(function (issue, i) {
       var root = $("cardTemplate").content.firstElementChild.cloneNode(true);
-      var card = { root: root, done: false };
+      var card = { root: root, done: false, target: null, status: null };
+      setupMatch(card, (data.lookups || [])[i], data.statusOptions || []);
       root.querySelector('[data-role="index"]').textContent = issues.length > 1 ? "이슈 " + (i + 1) + " / " + issues.length : "";
       root.querySelector('[data-role="skipWrap"]').hidden = issues.length < 2;
       root.querySelector('[data-role="skip"]').addEventListener("change", function (e) {
@@ -259,9 +306,9 @@ export function renderPage(nonce: string): string {
     if (!text.trim()) { showStatus("error", "붙여넣은 내용이 없습니다."); return; }
     setBusy(true);
     api("/api/preview", { text: text, split: $("split").checked }).then(function (data) {
-      renderCards(data.issues);
+      renderCards(data);
       $("splitToggle").hidden = !data.splittable;
-      hideStatus();
+      if (data.lookupError) showStatus("", data.lookupError); else hideStatus();
       $("reviewSection").hidden = false;
       field(cards[0], "title").focus();
     }).catch(function (err) { showStatus("error", err.message); })
@@ -274,14 +321,24 @@ export function renderPage(nonce: string): string {
     return issue;
   }
 
-  function markDone(card, url) {
-    card.done = true;
+  function markDone(card, url, label) {
+    card.done = label;
     card.root.classList.add("done");
     card.root.querySelectorAll("input, select, textarea").forEach(function (el) { el.disabled = true; });
     var result = card.root.querySelector('[data-role="result"]');
     result.hidden = false;
     result.className = "result ok";
-    setLink(result, "✅ 등록됨", url);
+    setLink(result, label === "update" ? "✅ 기존 이슈에 추가됨" : "✅ 등록됨", url);
+  }
+
+  function send(card) {
+    var issue = collect(card);
+    var pageId = card.target ? card.target.value : "";
+    if (pageId) {
+      return api("/api/issues/update", { pageId: pageId, issue: issue, status: card.status.value || null })
+        .then(function (data) { markDone(card, data.url, "update"); });
+    }
+    return api("/api/issues", issue).then(function (data) { markDone(card, data.url, "create"); });
   }
 
   function markError(card, message) {
@@ -302,12 +359,12 @@ export function renderPage(nonce: string): string {
 
     pending.reduce(function (chain, card) {
       return chain.then(function () {
-        return api("/api/issues", collect(card)).then(function (data) { markDone(card, data.url); },
-          function (err) { markError(card, err.message); throw err; });
+        return send(card).catch(function (err) { markError(card, err.message); throw err; });
       });
     }, Promise.resolve()).then(function () {
-      var count = cards.filter(function (card) { return card.done; }).length;
-      showStatus("ok", "✅ " + count + "건 등록됨");
+      var created = cards.filter(function (card) { return card.done === "create"; }).length;
+      var updated = cards.filter(function (card) { return card.done === "update"; }).length;
+      showStatus("ok", "✅ 새 이슈 " + created + "건" + (updated ? ", 기존 이슈 업데이트 " + updated + "건" : ""));
       $("pasteSection").hidden = true;
       $("submitBtn").hidden = true;
       $("doneSection").hidden = false;
