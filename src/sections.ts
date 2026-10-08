@@ -30,7 +30,6 @@ const COLON_LABELS = [
   "참고",
   // 본문 고정 틀(structure.ts)의 섹션 이름 — Notion에서 다시 읽을 때 인식
   "처리·해결",
-  "대화 기록",
 ];
 const COLON_LABEL_KEYS = new Set(COLON_LABELS.map((label) => compact(label)));
 
