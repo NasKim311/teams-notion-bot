@@ -37,13 +37,13 @@ describe("buildPageRequest", () => {
       parent: { database_id: "db-123" },
       properties: {
         제목: { title: [{ type: "text", text: { content: "로그인 버튼 무반응" } }] },
-        유형: { select: { name: "버그" } },
+        "✏️ 유형": { select: { name: "버그" } },
         작성자: { select: { name: "김개발" } },
         "레드마인 링크": { url: null },
         "MR 링크": { url: null },
-        "브랜치 명": { rich_text: [] },
+        "✏️ 브랜치 명": { rich_text: [] },
         "관련 파일": { rich_text: [] },
-        영역: { multi_select: [] },
+        "✏️ 영역": { multi_select: [] },
         "FO/BO": { select: null },
       },
       children: [
@@ -78,9 +78,9 @@ describe("buildPageRequest", () => {
     expect(props).toMatchObject({
       "레드마인 링크": { url: "http://redmine.example.com/issues/1" },
       "MR 링크": { url: "http://gitlab.example.com/a/-/merge_requests/2" },
-      "브랜치 명": { rich_text: [{ text: { content: "feature/x" } }] },
+      "✏️ 브랜치 명": { rich_text: [{ text: { content: "feature/x" } }] },
       "관련 파일": { rich_text: [{ text: { content: "src/A.tsx:1, src/B.tsx" } }] },
-      영역: { multi_select: [{ name: "fit" }, { name: "evt" }] },
+      "✏️ 영역": { multi_select: [{ name: "fit" }, { name: "evt" }] },
       "FO/BO": { select: { name: "BO" } },
     });
   });
@@ -147,7 +147,7 @@ describe("createNotionPage", () => {
 describe("기존 이슈 찾기/업데이트", () => {
   const STATUS_SCHEMA = {
     properties: {
-      상태: {
+      "✏️ 상태": {
         type: "status",
         status: {
           options: [
@@ -166,12 +166,12 @@ describe("기존 이슈 찾기/업데이트", () => {
     url: "https://www.notion.so/existing",
     properties: {
       제목: { type: "title", title: [{ plain_text: "기존 이슈" }] },
-      상태: { type: "status", status: { name: "진행 중" } },
+      "✏️ 상태": { type: "status", status: { name: "진행 중" } },
       "레드마인 링크": { type: "url", url: null },
       "MR 링크": { type: "url", url: "http://gitlab.example.com/a/-/merge_requests/1" },
-      "브랜치 명": { type: "rich_text", rich_text: [{ plain_text: "feature/a" }] },
+      "✏️ 브랜치 명": { type: "rich_text", rich_text: [{ plain_text: "feature/a" }] },
       "관련 파일": { type: "rich_text", rich_text: [] },
-      영역: { type: "multi_select", multi_select: [{ name: "fit" }] },
+      "✏️ 영역": { type: "multi_select", multi_select: [{ name: "fit" }] },
       "FO/BO": { type: "select", select: null },
       ...overrides,
     },
@@ -180,7 +180,7 @@ describe("기존 이슈 찾기/업데이트", () => {
   it("getStatusOptions: 완료 그룹에 '완료'가 있으면 첫 옵션('미진행')보다 우선", async () => {
     const schema = {
       properties: {
-        상태: {
+        "✏️ 상태": {
           type: "status",
           status: {
             options: [
@@ -253,12 +253,12 @@ describe("기존 이슈 찾기/업데이트", () => {
       "완료",
     );
     expect(update).toEqual({
-      상태: { status: { name: "완료" } },
+      "✏️ 상태": { status: { name: "완료" } },
       "레드마인 링크": { url: "http://r/issues/9" },
       "FO/BO": { select: { name: "FO" } },
-      "브랜치 명": { rich_text: [{ type: "text", text: { content: "feature/a, feature/b" } }] },
+      "✏️ 브랜치 명": { rich_text: [{ type: "text", text: { content: "feature/a, feature/b" } }] },
       "관련 파일": { rich_text: [{ type: "text", text: { content: "src/A.tsx:1" } }] },
-      영역: { multi_select: [{ name: "fit" }, { name: "evt" }] },
+      "✏️ 영역": { multi_select: [{ name: "fit" }, { name: "evt" }] },
     });
   });
 
@@ -302,7 +302,7 @@ describe("기존 이슈 찾기/업데이트", () => {
     expect(children.map((b: { type: string }) => b.type)).toEqual(["divider", "heading_3", "paragraph"]);
     expect(children[1].heading_3.rich_text[0].text.content).toMatch(/^🔄 업데이트 · 김개발 · /);
     expect(JSON.parse(fetchMock.mock.calls[2]![1]?.body as string)).toEqual({
-      properties: { 상태: { status: { name: "완료" } } },
+      properties: { "✏️ 상태": { status: { name: "완료" } } },
     });
   });
 });

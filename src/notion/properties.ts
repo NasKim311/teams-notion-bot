@@ -7,18 +7,18 @@ export function plainText(content: string) {
   return [{ type: "text", text: { content: chunkText(content)[0] ?? "" } }];
 }
 
-/** Notion DB 컬럼 이름. DB에서 컬럼 이름을 바꾸면 여기만 바꾼다. */
+/** Notion DB 컬럼 이름. DB에서 컬럼 이름을 바꾸면 여기만 바꾼다. "✏️ "는 DB 이름에 붙은 이모지 그대로다. */
 export const PROP = {
   title: "제목",
-  type: "유형",
+  type: "✏️ 유형",
   author: "작성자",
   workItem: "레드마인 링크",
   mr: "MR 링크",
-  branch: "브랜치 명",
+  branch: "✏️ 브랜치 명",
   files: "관련 파일",
-  areas: "영역",
+  areas: "✏️ 영역",
   platform: "FO/BO",
-  status: "상태",
+  status: "✏️ 상태",
 } as const;
 
 /** PROP 각 컬럼의 Notion 타입. DB 싱크 점검(npm run notion:schema)에서 실제 스키마와 비교한다. */

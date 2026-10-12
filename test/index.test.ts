@@ -44,12 +44,12 @@ const EXISTING = {
   url: "https://www.notion.so/existing",
   properties: {
     제목: { type: "title", title: [{ plain_text: "기존 이슈" }] },
-    상태: { type: "status", status: { name: "진행 중" } },
+    "✏️ 상태": { type: "status", status: { name: "진행 중" } },
   },
 };
 const STATUS_SCHEMA = {
   properties: {
-    상태: {
+    "✏️ 상태": {
       type: "status",
       status: {
         options: [
