@@ -28,8 +28,10 @@ const COLON_LABELS = [
   "브랜치명",
   "Merge Request",
   "참고",
-  // 본문 고정 틀(structure.ts)의 섹션 이름 — Notion에서 다시 읽을 때 인식
+  "관련 파일",
+  // 본문 고정 틀(structure.ts)의 섹션 이름 — Notion에서 다시 읽을 때와 팀 공유 양식에서 인식
   "처리·해결",
+  "참고(이미지 등 참고할만한 자료)",
 ];
 const COLON_LABEL_KEYS = new Set(COLON_LABELS.map((label) => compact(label)));
 
@@ -41,6 +43,8 @@ const TYPE_TAGS = new Set(["버그", "개선", "운영"]);
 // 길이 30: 본문 틀의 "📎 참고(이미지 등 참고할만한 자료)"(UTF-16 21자)도 라벨로 읽어야 한다.
 const BRACKET_LINE = /^\[\s*([^\]]{1,30}?)\s*\]$/;
 const COLON_LINE = /^([^:：]{1,15}?)\s*[:：]\s*(.*)$/;
+/** 팀 공유 양식의 제목을 콜론 없이 혼자 쓴 줄: "🐞 현상", "📂 관련 파일" (이모지로 시작할 때만. "현상"만 쓴 줄은 내용일 수 있음) */
+const EMOJI_HEADING_LINE = /^\p{Extended_Pictographic}️?\s*([^:：]{1,25})$/u;
 const NUMBERED_LINE = /^이슈\s*(\d{1,2})\s*\)(?:\s+(.*))?$/;
 
 export interface SectionLabel {
@@ -76,6 +80,9 @@ export function matchSectionLabel(line: string): SectionLabel | null {
   if (colon?.[1] && COLON_LABEL_KEYS.has(compact(colon[1]))) {
     return { label: colon[1].trim(), rest: colon[2]?.trim() ?? "" };
   }
+
+  const emoji = text.match(EMOJI_HEADING_LINE);
+  if (emoji?.[1] && COLON_LABEL_KEYS.has(compact(emoji[1]))) return { label: text, rest: "" };
   return null;
 }
 

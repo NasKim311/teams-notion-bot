@@ -110,6 +110,34 @@ describe("structureBody", () => {
     expect(structureBody(once)).toBe(once);
   });
 
+  it("팀 공유 양식: 관련 파일 줄은 컬럼에 있으므로 본문에서 빼고, 콜론 없는 제목도 섹션으로", () => {
+    const result = structureBody(
+      body(
+        "🐞 현상 : 총 개수가 다르게 표시됨",
+        "🔍 원인",
+        "length 사용",
+        "🛠 처리·해결 :",
+        "🎯 기대 동작 : total로 표시",
+        "📂 관련 파일 : src/views/fit/FitPage.tsx:75",
+        "src/views/fit/FitList.tsx 120번째 줄",
+        "📎 참고 : 첨부 이미지",
+      ),
+    );
+    expect(result).toBe(
+      frame({
+        symptom: "총 개수가 다르게 표시됨",
+        cause: "length 사용",
+        expected: "total로 표시",
+        note: "첨부 이미지",
+      }),
+    );
+  });
+
+  it("관련 파일 아래 파일이 아닌 설명은 참고로", () => {
+    const result = structureBody(body("현상 : 깨짐", "📂 관련 파일 :", "src/a/B.tsx:75", "공통 컴포넌트도 확인 필요"));
+    expect(result).toBe(frame({ symptom: "깨짐", note: "▸ 📂 관련 파일\n공통 컴포넌트도 확인 필요" }));
+  });
+
   it("새 참고 제목은 Notion 소제목이 된다", () => {
     const blocks = toBlocks(structureBody("화면이 깨져요"));
     expect(blocks.at(-1)).toMatchObject({ type: "heading_3" });

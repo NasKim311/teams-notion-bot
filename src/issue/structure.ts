@@ -1,3 +1,4 @@
+import { isFileOnlyLine } from "./extract";
 import { labelKey, matchSectionLabel } from "./sections";
 import { isHeaderLine, normalizeText } from "./text";
 
@@ -5,7 +6,7 @@ import { isHeaderLine, normalizeText } from "./text";
 //  - 팀 양식 라벨을 표준 섹션으로 모은다
 //  - 첫 메시지에서 라벨 없이 쓴 글은 현상으로
 //  - Teams 머리글(작성자·시간)과 이후 답글의 라벨 없는 글(대화)은 넣지 않는다. 답글 속 라벨 글은 해당 섹션으로
-//  - 브랜치·MR·레드마인 링크만 있는 줄은 컬럼에 있으므로 뺀다
+//  - 브랜치·MR·레드마인 링크만 있는 줄, 관련 파일 라벨 아래 파일 경로만 있는 줄은 컬럼에 있으므로 뺀다
 // 결과는 "[ 🐞 현상 ]" 같은 대괄호 라벨 텍스트라 blocks.ts가 소제목으로 바꾼다.
 
 type SectionId = "symptom" | "expected" | "cause" | "fix" | "note";
@@ -38,8 +39,8 @@ const SUB_LABELS = keyMap([
   ["symptom", ["경로", "위치", "재현", "재현 방법"]],
   ["note", ["관련 추가 이슈", "우려"]],
 ]);
-/** 값이 컬럼(브랜치 명·MR 링크)에 들어가는 라벨 */
-const DEV_LABELS = new Set(["브랜치명", "작업 브랜치명", "Merge Request"].map(labelKey));
+/** 값이 컬럼(브랜치 명·MR 링크·관련 파일)에 들어가는 라벨 */
+const DEV_LABELS = new Set(["브랜치명", "작업 브랜치명", "Merge Request", "관련 파일"].map(labelKey));
 /** 줄 전체가 브랜치명 또는 MR/레드마인 링크뿐인 줄 */
 const LONE_DEV_LINE =
   /^(?:(?:feature|bugfix|hotfix|release|fix|refactor)\/[\w.\-#/]+|https?:\/\/\S*(?:\/merge_requests\/\d+|redmine\S*\/issues\/\d+)\S*?)[.,]?$/i;
@@ -56,6 +57,7 @@ export function structureBody(body: string): string {
 
   function handleText(line: string) {
     if (LONE_DEV_LINE.test(line.trim())) return;
+    if (target === "dev" && isFileOnlyLine(line)) return;
     if (target === "dev") {
       // 브랜치/MR 라벨 아래의 다른 설명은 참고로 옮긴다
       sections.note.push("", `▸ ${devLabel}`);

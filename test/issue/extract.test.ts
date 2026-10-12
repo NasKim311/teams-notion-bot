@@ -49,6 +49,13 @@ describe("extractWorkItem", () => {
 });
 
 describe("extractFiles", () => {
+  it("'경로:줄' / '경로:시작-끝' 형식의 줄 번호", () => {
+    expect(extractFiles("📂 관련 파일 : src/views/fit/FitPage.tsx:75\nsrc/a/List.tsx:103-119")).toEqual([
+      "src/views/fit/FitPage.tsx:75",
+      "src/a/List.tsx:103-119",
+    ]);
+  });
+
   it("경로 뒤 줄 번호(같은 줄 / 다음 줄 / 범위)", () => {
     expect(
       extractFiles(

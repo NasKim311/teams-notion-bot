@@ -24,6 +24,13 @@ const BRANCH = /(?<![\w/])(?:feature|bugfix|hotfix|release|fix|refactor)\/[\w.\-
 const FILE_PATH = /(?:[\w.-]+\/)*[\w.-]+\.(?:tsx?|jsx?|mjs|cjs|vue|scss|css|less|json|html)(?![\w])/g;
 const LINE_REF = /^\s*(?:의\s*)?(\d+)\s*(?:[~-]\s*(\d+))?\s*(?:번째\s*)?줄/;
 const LINE_REF_ONLY = /^\s*(\d+)\s*(?:[~-]\s*(\d+))?\s*(?:번째\s*)?줄\s*$/;
+/** 경로에 붙은 줄 번호: "Page.tsx:75", "List.tsx:103-119" */
+const COLON_LINE_REF = /^:(\d+)(?:\s*[~-]\s*(\d+))?(?!\d)/;
+/** 파일 경로 + (있으면) 줄 번호 한 덩어리 */
+const FILE_WITH_LINE = new RegExp(
+  String.raw`${FILE_PATH.source}(?::\d+(?:\s*[~-]\s*\d+)?|\s*(?:의\s*)?\d+\s*(?:[~-]\s*\d+)?\s*(?:번째\s*)?줄)?`,
+  "g",
+);
 const VIEW_MODULE = /(?:^|\/)views?\/([a-z][\w-]{1,20})(?:\/|$)/i;
 // 영문자에 붙지 않은 대문자 FO/BO ("BO에서", "[BO]") 또는 한글 명칭
 const PLATFORM = /(?<![A-Za-z])(FO|BO)(?![A-Za-z])|(프론트\s*오피스)|(백\s*오피스)/;
@@ -51,13 +58,19 @@ export function extractFiles(text: string): string[] {
       const path = match[0];
       if (seen.has(path)) continue;
       const after = line.slice((match.index ?? 0) + path.length);
-      const sameLine = after.match(LINE_REF);
+      const sameLine = after.match(COLON_LINE_REF) ?? after.match(LINE_REF);
       const nextLine = after.trim() === "" ? (lines[index + 1] ?? "").match(LINE_REF_ONLY) : null;
       const ref = sameLine ?? nextLine;
       seen.set(path, `${path}${lineSuffix(ref?.[1], ref?.[2])}`);
     }
   });
   return [...seen.values()].slice(0, MAX_FILES);
+}
+
+/** 줄이 파일 경로(+줄 번호)만으로 되어 있는지: "src/a/B.tsx:75", "a.ts 75번째 줄, b.ts" */
+export function isFileOnlyLine(line: string): boolean {
+  const rest = line.replace(FILE_WITH_LINE, "");
+  return rest !== line && /^[\s,.]*$/.test(rest);
 }
 
 export function extractAreas(text: string, files: string[]): string[] {
