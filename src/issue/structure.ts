@@ -1,7 +1,7 @@
 import { labelKey, matchSectionLabel } from "./sections";
 import { isHeaderLine, normalizeText } from "./text";
 
-// 새 이슈 본문을 고정 틀로 정리한다: 현상 → 기대 동작 → 원인 → 처리·해결 → 참고 (내용이 없어도 제목은 모두 넣음).
+// 새 이슈 본문을 고정 틀로 정리한다: 현상 → 원인 → 처리·해결 → 기대 동작 → 참고 (내용이 없어도 제목은 모두 넣음).
 //  - 팀 양식 라벨을 표준 섹션으로 모은다
 //  - 첫 메시지에서 라벨 없이 쓴 글은 현상으로
 //  - Teams 머리글(작성자·시간)과 이후 답글의 라벨 없는 글(대화)은 넣지 않는다. 답글 속 라벨 글은 해당 섹션으로
@@ -17,20 +17,21 @@ export const SECTION_TITLES: Record<SectionId, string> = {
   expected: "🎯 기대 동작",
   cause: "🔍 원인",
   fix: "🛠 처리·해결",
-  note: "📎 참고",
+  // 스크린샷이 본문 뒤(참고 아래)에 붙으므로 제목에 이미지를 함께 적는다
+  note: "📎 참고(이미지 등 참고할만한 자료)",
 };
-const ORDER: SectionId[] = ["symptom", "expected", "cause", "fix", "note"];
+const ORDER: SectionId[] = ["symptom", "cause", "fix", "expected", "note"];
 
 const keyMap = (entries: [SectionId, string[]][]) =>
   new Map(entries.flatMap(([id, labels]) => labels.map((label) => [labelKey(label), id] as const)));
 
-/** 표준 섹션으로 그대로 옮기는 라벨 */
+/** 표준 섹션으로 그대로 옮기는 라벨 (섹션 제목 자체도 포함해 이미 정리된 본문을 다시 읽을 수 있게) */
 const MAIN_LABELS = keyMap([
   ["symptom", ["이슈 사항", "이슈", "이슈 현상", "현상", "문제점"]],
-  ["expected", ["기대 동작"]],
   ["cause", ["원인", "이슈 원인", "이슈 발생 원인"]],
   ["fix", ["해결", "해결 방법", "이슈 해결", "처리 상황", "개선", "처리·해결"]],
-  ["note", ["참고"]],
+  ["expected", ["기대 동작"]],
+  ["note", ["참고", SECTION_TITLES.note]],
 ]);
 /** 섹션 안에 "▸ 라벨" 줄을 남기고 옮기는 라벨 (그 외 모르는 라벨은 참고로) */
 const SUB_LABELS = keyMap([

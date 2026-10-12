@@ -8,16 +8,16 @@ const body = (...rows: string[]) => rows.join("\n");
 function frame(content: { symptom?: string; expected?: string; cause?: string; fix?: string; note?: string }): string {
   const sections: [string, string | undefined][] = [
     ["🐞 현상", content.symptom],
-    ["🎯 기대 동작", content.expected],
     ["🔍 원인", content.cause],
     ["🛠 처리·해결", content.fix],
-    ["📎 참고", content.note],
+    ["🎯 기대 동작", content.expected],
+    ["📎 참고(이미지 등 참고할만한 자료)", content.note],
   ];
   return sections.map(([title, text]) => (text ? `[ ${title} ]\n${text}` : `[ ${title} ]`)).join("\n\n");
 }
 
 describe("structureBody", () => {
-  it("팀 라벨을 표준 섹션 순서로 모은다 (현상 → 기대 동작 → 원인 → 처리·해결)", () => {
+  it("팀 라벨을 표준 섹션 순서로 모은다 (현상 → 원인 → 처리·해결 → 기대 동작)", () => {
     const result = structureBody(
       body(
         "처리 상황 : 전달 완료",
@@ -102,5 +102,16 @@ describe("structureBody", () => {
   it("이미 틀로 정리된 본문을 다시 정리해도 같다", () => {
     const once = structureBody(body("이슈 원인 : 조건문 반대", "기대 동작 : 에러 Alert"));
     expect(structureBody(once)).toBe(once);
+  });
+
+  it("참고 섹션 내용도 다시 정리하면 참고에 그대로 남는다 (긴 참고 제목도 섹션으로 인식)", () => {
+    const once = structureBody(body("이슈 사항 : 로그인 안 됨", "", "관련 추가 이슈 : 회원가입도 확인 필요"));
+    expect(once).toBe(frame({ symptom: "로그인 안 됨", note: "▸ 관련 추가 이슈\n회원가입도 확인 필요" }));
+    expect(structureBody(once)).toBe(once);
+  });
+
+  it("새 참고 제목은 Notion 소제목이 된다", () => {
+    const blocks = toBlocks(structureBody("화면이 깨져요"));
+    expect(blocks.at(-1)).toMatchObject({ type: "heading_3" });
   });
 });

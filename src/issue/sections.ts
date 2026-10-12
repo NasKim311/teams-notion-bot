@@ -37,8 +37,9 @@ const COLON_LABEL_KEYS = new Set(COLON_LABELS.map((label) => compact(label)));
 export const PRIMARY_LABELS = new Set(["이슈 사항", "이슈", "이슈 현상", "현상", "문제점"].map(compact));
 
 const TYPE_TAGS = new Set(["버그", "개선", "운영"]);
-// 대괄호 라벨은 줄에 혼자 있을 때만 인정 ("[긴급] 결제 오류" 같은 말머리는 섹션이 아님)
-const BRACKET_LINE = /^\[\s*([^\]]{1,20}?)\s*\]$/;
+// 대괄호 라벨은 줄에 혼자 있을 때만 인정 ("[긴급] 결제 오류" 같은 말머리는 섹션이 아님).
+// 길이 30: 본문 틀의 "📎 참고(이미지 등 참고할만한 자료)"(UTF-16 21자)도 라벨로 읽어야 한다.
+const BRACKET_LINE = /^\[\s*([^\]]{1,30}?)\s*\]$/;
 const COLON_LINE = /^([^:：]{1,15}?)\s*[:：]\s*(.*)$/;
 const NUMBERED_LINE = /^이슈\s*(\d{1,2})\s*\)(?:\s+(.*))?$/;
 

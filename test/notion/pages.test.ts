@@ -54,10 +54,10 @@ describe("buildPageRequest", () => {
           type: "paragraph",
           paragraph: { rich_text: [{ type: "text", text: { content: issue.body } }] },
         },
-        heading("🎯 기대 동작"),
         heading("🔍 원인"),
         heading("🛠 처리·해결"),
-        heading("📎 참고"),
+        heading("🎯 기대 동작"),
+        heading("📎 참고(이미지 등 참고할만한 자료)"),
       ],
     });
   });

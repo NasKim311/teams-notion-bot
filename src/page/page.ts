@@ -73,7 +73,7 @@ ${styles}
       <summary class="hint">추천 양식 보기</summary>
       <pre id="template">${escapeHtml(TEMPLATE)}</pre>
       <p class="hint">제목은 이슈 사항(현상)의 첫 문장으로 자동으로 만들어져요. 직접 정하려면 맨 위에 "제목: [버그] 한 줄 요약"을 적으세요.
-        이슈 사항/기대 동작/이슈 원인/해결 방법 같은 라벨은 Notion에서 현상/기대 동작/원인/처리·해결 섹션으로 정리돼요.
+        이슈 사항/이슈 원인/해결 방법/기대 동작 같은 라벨은 Notion에서 현상/원인/처리·해결/기대 동작 섹션으로 정리돼요.
         "이슈 1)", "이슈 2)"처럼 여러 이슈를 한 번에 붙이면 나눠서 등록할 수 있어요.
         작성자: 줄은 본문에서 빠지고, Teams 메시지 링크는 저장하지 않아요.</p>
       <button type="button" id="useTemplate">양식 넣기</button>
@@ -133,7 +133,7 @@ ${styles}
       </div>
       <label>관련 파일<input data-field="files" maxlength="2000" placeholder="쉼표로 구분 (예: src/views/fit/pages/FitDetail.tsx:75)"></label>
       <label>본문<textarea data-field="body" rows="10"></textarea></label>
-      <div class="hint">새 이슈로 등록하면 본문이 현상 → 기대 동작 → 원인 → 처리·해결 → 참고 순서로 정리돼요 (작성자·시간과 답글 대화는 빠져요). 기존 이슈에 추가할 때는 그대로 붙어요.</div>
+      <div class="hint">새 이슈로 등록하면 본문이 현상 → 원인 → 처리·해결 → 기대 동작 → 참고 순서로 정리돼요 (작성자·시간과 답글 대화는 빠져요). 기존 이슈에 추가할 때는 그대로 붙어요.</div>
       <div class="images">
         <div class="hint">스크린샷 (이 카드를 클릭한 뒤 Ctrl+V, 또는 파일 선택)</div>
         <div class="thumbs" data-role="thumbs"></div>
