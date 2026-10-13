@@ -1,3 +1,4 @@
+import { workItemNumber } from "../issue/extract";
 import { structureBody } from "../issue/structure";
 import type { Issue } from "../types";
 import { imageBlocks, type NotionBlock, toBlocks } from "./blocks";
@@ -84,26 +85,38 @@ export async function getStatusOptions(env: NotionEnv, fetchImpl: typeof fetch =
   return { names: options.map((option) => option.name), inProgress: pick(1, "진행 중"), complete: pick(2, "완료") };
 }
 
-/** 같은 레드마인 일감으로 등록된 페이지를 찾는다. */
+const MAX_MATCHES = 5;
+
+/**
+ * 같은 레드마인 일감으로 등록된 페이지를 찾는다.
+ * 링크 글자가 아니라 일감 번호로 비교한다 (관리자가 직접 넣은 "https://…/issues/11661#note-3"도 같은 일감, I11).
+ */
 export async function findExistingPages(
   issue: Pick<Issue, "workItemUrl">,
   env: NotionEnv,
   fetchImpl: typeof fetch = fetch,
 ): Promise<ExistingPage[]> {
   if (!issue.workItemUrl) return [];
+  const number = workItemNumber(issue.workItemUrl);
 
   const data = await notionRequest<{ results?: PageObject[] }>(
     env,
     "POST",
     `/databases/${env.NOTION_DATABASE_ID}/query`,
     {
-      filter: { property: PROP.workItem, url: { equals: issue.workItemUrl } },
-      page_size: 5,
+      filter: {
+        property: PROP.workItem,
+        url: number ? { contains: `/issues/${number}` } : { equals: issue.workItemUrl },
+      },
+      // "contains"는 "/issues/116610"도 찾으므로 넉넉히 받아 번호가 정확히 같은 것만 남긴다
+      page_size: MAX_MATCHES * 2,
       sorts: [{ timestamp: "created_time", direction: "descending" }],
     },
     fetchImpl,
   );
-  return (data.results ?? []).map(toExistingPage);
+  const sameNumber = (page: PageObject) =>
+    !number || workItemNumber(String(page.properties[PROP.workItem]?.url ?? "")) === number;
+  return (data.results ?? []).filter(sameNumber).slice(0, MAX_MATCHES).map(toExistingPage);
 }
 
 function updateHeading(issue: Issue, now: Date): NotionBlock[] {

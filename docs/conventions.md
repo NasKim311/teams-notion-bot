@@ -25,7 +25,7 @@
 - **순수 함수와 입출력을 나눈다.**
   - 순수: `issue/` 전부, `notion/blocks.ts`, `notion/properties.ts`. 네트워크·시간·난수를 쓰지 않는다. 필요하면 인자로 받는다 (예: `now: Date`, `fetchImpl`).
   - 입출력: `notion/client·pages·uploads`(Notion 호출), `api/`(요청 처리), `index.ts`(라우팅만).
-- **import 방향:** `index` → `api`·`http`·`page` / `api` → `issue`·`notion`·`store`·`http` / `notion` → `issue`(structure·text·sections). `issue/`는 `notion`·`api`·`http`를 import하면 안 된다. 같은 폴더 안에서는 `parse` → 나머지, `text`는 아무것도 import하지 않는 바닥 모듈.
+- **import 방향:** `index` → `api`·`http`·`page` / `api` → `issue`·`notion`·`store`·`http` / `notion` → `issue`(structure·text·sections·extract). `issue/`는 `notion`·`api`·`http`를 import하면 안 된다. 같은 폴더 안에서는 `parse` → 나머지, `text`는 아무것도 import하지 않는 바닥 모듈.
 - **Notion 컬럼 이름은 `PROP`으로만 쓴다.** 코드에 `"레드마인 링크"` 같은 문자열을 직접 쓰지 않는다.
 
 ## 이름

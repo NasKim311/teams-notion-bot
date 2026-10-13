@@ -88,14 +88,44 @@ export function extractAreas(text: string, files: string[]): string[] {
   return [...areas].slice(0, MAX_AREAS);
 }
 
+/** 일감 주소의 번호 부분: "…/issues/11661#note-3" → "11661" */
+const ISSUE_NUMBER = /\/issues\/(\d+)(?!\d)/;
+
+const issueUrl = (redmineIssueUrl: string, number: string) => `${redmineIssueUrl.replace(/\/?$/, "/")}${number}`;
+
+function hostOf(url: string): string | null {
+  try {
+    return new URL(url).host.toLowerCase() || null;
+  } catch {
+    return null;
+  }
+}
+
+/** 레드마인 일감 링크의 번호. 일감 주소가 아니면 null. */
+export function workItemNumber(url: string): string | null {
+  return url.match(ISSUE_NUMBER)?.[1] ?? null;
+}
+
+/**
+ * 설정된 레드마인과 호스트가 같은 일감 링크는 표준 주소(기본 주소 + 번호)로 통일한다 (I11).
+ * "https://…/issues/11661#note-3" → "http://…/issues/11661". 다른 호스트·일감이 아닌 주소는 그대로.
+ */
+export function normalizeWorkItemUrl(url: string | null, redmineIssueUrl?: string): string | null {
+  if (!url || !redmineIssueUrl) return url;
+  const number = workItemNumber(url);
+  const host = hostOf(url);
+  if (!number || !host || host !== hostOf(redmineIssueUrl)) return url;
+  return issueUrl(redmineIssueUrl, number);
+}
+
 /** Redmine 일감 URL. 본문에 URL이 없으면 "#11661", "일감번호 8795"를 기본 주소로 이어 붙인다. */
 export function extractWorkItem(text: string, redmineIssueUrl?: string): string | null {
   const url = text.match(REDMINE_URL)?.[0];
-  if (url) return url;
+  if (url) return normalizeWorkItemUrl(url, redmineIssueUrl);
 
   const number = findWorkItemNumber(text.replace(URL_PATTERN, " "));
   if (!number || !redmineIssueUrl) return null;
-  return `${redmineIssueUrl.replace(/\/?$/, "/")}${number}`;
+  return issueUrl(redmineIssueUrl, number);
 }
 
 /** 본문에서 처음 나온 일감 번호. CSS 색상 코드("#333333")는 건너뛴다. */

@@ -14,7 +14,7 @@
 | 제목 | title | 봇 (`[영역] 요약`, [decisions.md](decisions.md)) |
 | ✏️ 유형 | select (버그/개선/운영/기타) | 봇 |
 | 작성자 | select | 봇 (Teams 머리글 또는 `작성자:` 줄의 이름. 옵션은 담당자와 같은 팀원 9명, 목록에 없는 이름·"알 수 없음"은 Notion이 옵션을 새로 만듦) |
-| 레드마인 링크 | url | 봇 (`#11661` → `REDMINE_ISSUE_URL` + 번호). 이슈 공유로 먼저 등록한 페이지는 일감을 만들 때 사람이 직접 넣는다 (결과 공유 연결용, [decisions.md](decisions.md)) |
+| 레드마인 링크 | url | 봇 (`#11661`, 같은 호스트의 `https://…/issues/11661#note-3` → `REDMINE_ISSUE_URL` + 번호). 사람이 직접 넣을 때는 어떤 모양이든 일감 번호로 찾는다. 이슈 공유로 먼저 등록한 페이지는 일감을 만들 때 사람이 직접 넣는다 (결과 공유 연결용, [decisions.md](decisions.md)) |
 | MR 링크 | url | 봇 (`merge_requests/N`) |
 | ✏️ 브랜치 명 | rich_text | 봇 (`feature/…` 등, 쉼표로 구분) |
 | 관련 파일 | rich_text | 봇 (`경로:75`, 최대 10개) |

@@ -45,6 +45,8 @@ const EXISTING = {
   properties: {
     제목: { type: "title", title: [{ plain_text: "기존 이슈" }] },
     "✏️ 상태": { type: "status", status: { name: "진행 중" } },
+    // 관리자가 브라우저에서 복사해 직접 넣은 모양 (I11: 본문의 http 링크와 글자가 달라도 같은 일감)
+    "레드마인 링크": { type: "url", url: "https://redmine.example.com/issues/1#note-2" },
   },
 };
 const STATUS_SCHEMA = {
@@ -232,6 +234,14 @@ describe("POST /api/issues", () => {
     expect(sent.parent).toEqual({ database_id: env.NOTION_DATABASE_ID });
     expect(sent.properties["작성자"]).toEqual({ select: { name: "홍길동" } });
     expect(sent.properties["FO/BO"]).toEqual({ select: { name: "FO" } });
+  });
+
+  it("카드에서 고친 레드마인 링크도 표준 주소로 저장한다 (I11)", async () => {
+    mockNotion();
+    const workItemUrl = "https://redmine.example.com/issues/11661#note-3";
+    expect((await call(post("/api/issues", { ...issue, workItemUrl }))).status).toBe(201);
+    const sent = JSON.parse(fetchSpy.mock.calls[0]![1]?.body as string);
+    expect(sent.properties["레드마인 링크"]).toEqual({ url: "http://redmine.example.com/issues/11661" });
   });
 
   it("검증 실패 → 400 + 메시지, Notion 호출 없음", async () => {

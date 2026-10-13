@@ -213,10 +213,18 @@ describe("기존 이슈 찾기/업데이트", () => {
     expect(fetchMock.mock.calls[0]![0]).toBe("https://api.notion.com/v1/databases/db-123");
   });
 
-  it("findExistingPages: 레드마인 링크로 조회", async () => {
-    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ results: [page()] }));
+  it("findExistingPages: 레드마인 일감 번호로 조회 (http/https·#note 차이는 같은 일감, I11)", async () => {
+    const link = (url: string) => ({ "레드마인 링크": { type: "url", url } });
+    const fetchMock = vi.fn<typeof fetch>(async () =>
+      Response.json({
+        results: [
+          page(link("https://r/issues/11661#note-3")),
+          { ...page(link("http://r/issues/116610")), id: "other" }, // 번호가 더 긴 다른 일감
+        ],
+      }),
+    );
 
-    const found = await findExistingPages({ workItemUrl: "http://r/issues/1" }, env, fetchMock);
+    const found = await findExistingPages({ workItemUrl: "http://r/issues/11661" }, env, fetchMock);
     expect(found).toEqual([
       {
         id: "11111111-2222-3333-4444-555555555555",
@@ -229,7 +237,16 @@ describe("기존 이슈 찾기/업데이트", () => {
     expect(url).toBe("https://api.notion.com/v1/databases/db-123/query");
     expect(JSON.parse(init?.body as string).filter).toEqual({
       property: "레드마인 링크",
-      url: { equals: "http://r/issues/1" },
+      url: { contains: "/issues/11661" },
+    });
+  });
+
+  it("findExistingPages: 일감 번호가 없는 링크는 글자 그대로 비교", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => Response.json({ results: [page()] }));
+    await findExistingPages({ workItemUrl: "http://r/projects/a" }, env, fetchMock);
+    expect(JSON.parse(fetchMock.mock.calls[0]![1]?.body as string).filter).toEqual({
+      property: "레드마인 링크",
+      url: { equals: "http://r/projects/a" },
     });
   });
 

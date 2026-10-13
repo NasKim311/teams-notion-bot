@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { extractAreas, extractDevInfo, extractFiles, extractPlatform, extractWorkItem } from "../../src/issue/extract";
+import {
+  extractAreas,
+  extractDevInfo,
+  extractFiles,
+  extractPlatform,
+  extractWorkItem,
+  normalizeWorkItemUrl,
+  workItemNumber,
+} from "../../src/issue/extract";
 
 const REDMINE = "http://redmine.example.com/issues/";
 
@@ -16,6 +24,18 @@ describe("extractWorkItem", () => {
     ["일감 : #N", "일감: #1234", "1234"],
   ])("%s → 기본 주소 + 번호", (_label, text, number) => {
     expect(extractWorkItem(text, REDMINE)).toBe(`${REDMINE}${number}`);
+  });
+
+  it.each([
+    ["https://redmine.example.com/issues/11661#note-3"],
+    ["https://redmine.example.com/issues/11661?tab=history"],
+    ["http://redmine.example.com/issues/11661/"],
+  ])("같은 레드마인 호스트의 링크는 표준 주소로 통일 (I11): %s", (link) => {
+    expect(extractWorkItem(`일감 ${link} 확인`, REDMINE)).toBe(`${REDMINE}11661`);
+  });
+
+  it("다른 호스트의 레드마인 링크는 그대로 둔다", () => {
+    expect(extractWorkItem("https://redmine.other.com/issues/5", REDMINE)).toBe("https://redmine.other.com/issues/5");
   });
 
   it("기본 주소가 없으면 번호만으로는 만들지 않음", () => {
@@ -45,6 +65,32 @@ describe("extractWorkItem", () => {
       expect(extractWorkItem("#11661 작업 중", REDMINE)).toBe(`${REDMINE}11661`);
       expect(extractWorkItem("일감 #879 확인", REDMINE)).toBe(`${REDMINE}879`);
     });
+  });
+});
+
+describe("normalizeWorkItemUrl / workItemNumber", () => {
+  it.each([
+    ["https://redmine.example.com/issues/11661#note-3", `${REDMINE}11661`],
+    ["http://redmine.example.com/issues/11661", `${REDMINE}11661`],
+    ["https://redmine.other.com/issues/5", "https://redmine.other.com/issues/5"],
+    ["http://redmine.example.com/projects/a", "http://redmine.example.com/projects/a"],
+  ])("%s → %s", (url, expected) => {
+    expect(normalizeWorkItemUrl(url, REDMINE)).toBe(expected);
+  });
+
+  it("빈 값과 기본 주소 없음은 그대로", () => {
+    expect(normalizeWorkItemUrl(null, REDMINE)).toBeNull();
+    expect(normalizeWorkItemUrl("https://redmine.example.com/issues/1#a", undefined)).toBe(
+      "https://redmine.example.com/issues/1#a",
+    );
+  });
+
+  it.each([
+    ["http://r/issues/11661", "11661"],
+    ["https://r/issues/11661#note-3", "11661"],
+    ["http://r/projects/a", null],
+  ])("workItemNumber(%s) → %s", (url, expected) => {
+    expect(workItemNumber(url)).toBe(expected);
   });
 });
 
