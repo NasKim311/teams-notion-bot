@@ -1,6 +1,7 @@
 import type { Issue } from "../types";
 import { classify } from "./classify";
 import { extractDevInfo } from "./extract";
+import { stripFormPlaceholders } from "./form";
 import { personName, rewriteHeaders, UNKNOWN_AUTHOR } from "./header";
 import { splitIssueLines } from "./split";
 import { normalizeText } from "./text";
@@ -54,7 +55,9 @@ export function prepare(raw: string): Prepared {
   return { title, author: author ?? rewritten.author, lines: rewritten.lines };
 }
 
-function buildIssue(lines: string[], prepared: Prepared, options: ParseOptions): Issue {
+function buildIssue(rawLines: string[], prepared: Prepared, options: ParseOptions): Issue {
+  // 처리한 메시지 지문은 prepare 결과로 만들므로, 예시 문구는 그 뒤인 여기서 뺀다
+  const lines = stripFormPlaceholders(rawLines);
   const body = normalizeText(lines.join("\n"));
   const { title } = prepared;
   const devInfo = extractDevInfo(`${title ?? ""}\n${body}`, options.redmineIssueUrl);

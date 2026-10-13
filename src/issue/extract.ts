@@ -31,6 +31,8 @@ const FILE_WITH_LINE = new RegExp(
   String.raw`${FILE_PATH.source}(?::\d+(?:\s*[~-]\s*\d+)?|\s*(?:의\s*)?\d+\s*(?:[~-]\s*\d+)?\s*(?:번째\s*)?줄)?`,
   "g",
 );
+/** 예시 괄호: "경로:줄 번호 (예: src/views/fit/FitPage.tsx:75)", "(예시: a/B.tsx)" — 안의 경로는 실제 파일이 아님 (B5) */
+const EXAMPLE_NOTE = /\(\s*예(?:시)?\s*[:：)][^()]*\)/g;
 const VIEW_MODULE = /(?:^|\/)views?\/([a-z][\w-]{1,20})(?:\/|$)/i;
 // 영문자에 붙지 않은 대문자 FO/BO ("BO에서", "[BO]") 또는 한글 명칭
 const PLATFORM = /(?<![A-Za-z])(FO|BO)(?![A-Za-z])|(프론트\s*오피스)|(백\s*오피스)/;
@@ -50,7 +52,7 @@ function lineSuffix(start?: string, end?: string): string {
 
 /** 파일 경로와 바로 뒤(또는 다음 줄)의 줄 번호를 "경로:75" / "경로:103-119"로. */
 export function extractFiles(text: string): string[] {
-  const lines = text.replace(URL_PATTERN, " ").split("\n");
+  const lines = text.replace(URL_PATTERN, " ").replace(EXAMPLE_NOTE, " ").split("\n");
   const seen = new Map<string, string>();
 
   lines.forEach((line, index) => {

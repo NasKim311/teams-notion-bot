@@ -14,7 +14,7 @@ Teams 연동(웹후크·Power Automate)은 불가능해서 쓰지 않는다. 이
 ## 흐름
 GET / 입력 화면 → 붙여넣기(+스크린샷) → POST /api/preview → 이슈 카드 확인·수정 → POST /api/uploads(이미지) → POST /api/issues(새 이슈) 또는 POST /api/issues/update(기존 이슈에 추가) → 모두 끝나면 POST /api/processed(처리한 메시지 지문 기록, 다음 미리보기에서 제외)
 
-- preview: 팀 양식 섹션(이슈 사항/기대 동작/[ 이슈 ]/이슈 N) 인식, 여러 이슈 나누기, 개발 정보(레드마인/MR 링크, 브랜치 명, 관련 파일, 영역, FO/BO) 추출, 같은 레드마인 링크의 기존 페이지 조회
+- preview: 팀 공지 양식의 예시 문구·구분선 제거(`issue/form.ts`), 팀 양식 섹션(이슈 사항/기대 동작/[ 이슈 ]/이슈 N) 인식, 여러 이슈 나누기, 개발 정보(레드마인/MR 링크, 브랜치 명, 관련 파일, 영역, FO/BO) 추출, 같은 레드마인 링크의 기존 페이지 조회
 - 새 이슈 본문은 등록 시 고정 틀(현상/테스트 URL/원인/처리·해결/기대 동작/참고, 빈 섹션도 제목은 넣음)로 정리, 머리글·답글 대화는 제외. 업데이트는 원문 그대로
 - 폴더: `api/`(API별 처리) · `http/`(인증·응답·요청 읽기·로그) · `issue/`(붙여넣기→이슈, 순수 함수) · `notion/`(Notion API, 컬럼 이름 PROP) · `store/`(KV: 처리한 메시지 지문) · `page/`(화면: page.ts + styles.css + client.js). 자세한 구조는 README
 

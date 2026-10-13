@@ -238,3 +238,40 @@ describe("회귀: 말머리 대괄호", () => {
     expect(issue.title).toBe("[e2e] [테스트] 자동 검증용 이슈");
   });
 });
+
+describe("회귀 B5: 팀 공지 양식의 예시 문구를 지우지 않고 올림", () => {
+  const raw = [
+    "김개발(사원) - 유젠",
+    "오후 1:25",
+    "━━━━━━ <이슈 공유 양식> ━━━━━━",
+    "🐞 현상 : 상품 상세에서 옵션 선택 시 가격이 0원으로 표시됨",
+    "🌐 테스트 URL : 문제가 생기는 화면 주소",
+    "🔍 원인 :",
+    "🛠 처리·해결 :",
+    "🎯 기대 동작 : 원래 어떻게 동작해야 하는지",
+    "📂 관련 파일 : 컴포넌트 경로:줄 번호 (예: src/views/fit/FitPage.tsx:75)",
+    "📎 참고 : 이미지 등 참고할 만한 자료",
+  ].join("\n");
+
+  it("예시 경로를 관련 파일·영역·제목에 쓰지 않는다", () => {
+    const issue = parsePastedText(raw);
+    expect(issue.files).toBe("");
+    expect(issue.areas).toEqual([]);
+    expect(issue.title).toBe("상품 상세에서 옵션 선택 시 가격이 0원으로 표시됨");
+  });
+
+  it("본문에 예시 문구와 구분선이 남지 않는다", () => {
+    const { body } = parsePastedText(raw);
+    for (const text of ["문제가 생기는 화면 주소", "원래 어떻게 동작해야 하는지", "참고할 만한 자료", "━", "예:"]) {
+      expect(body).not.toContain(text);
+    }
+    expect(body).toContain("🐞 현상 : 상품 상세에서 옵션 선택 시 가격이 0원으로 표시됨");
+  });
+
+  it("예시 문구만 있는 현상이면 제목을 예시로 만들지 않는다", () => {
+    const issue = parsePastedText(
+      "🐞 현상 : 어떤 화면에서 어떤 문제가 생기는지 (재현 방법 포함)\n🔍 원인 : 캐시 키 누락",
+    );
+    expect(issue.title).toBe("캐시 키 누락");
+  });
+});

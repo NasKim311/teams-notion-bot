@@ -78,6 +78,13 @@ describe("extractFiles", () => {
   it("중복 제거, URL 속 파일명 무시", () => {
     expect(extractFiles("a/B.tsx 와 a/B.tsx\nhttps://cdn.example.com/x/app.js")).toEqual(["a/B.tsx"]);
   });
+
+  it("'(예: …)' 안의 경로는 예시라서 잡지 않는다 (B5)", () => {
+    expect(extractFiles("관련 파일 : 경로:줄 번호 (예: src/views/fit/FitPage.tsx:75)\nsrc/a/B.tsx:3")).toEqual([
+      "src/a/B.tsx:3",
+    ]);
+    expect(extractFiles("관련 파일 : (예시: a/B.tsx)")).toEqual([]);
+  });
 });
 
 describe("extractAreas", () => {
