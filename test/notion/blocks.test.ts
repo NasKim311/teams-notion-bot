@@ -48,6 +48,31 @@ describe("richText", () => {
     });
   });
 
+  describe("회귀 B6: Notion이 거부하는 링크 주소로 등록이 실패하지 않게", () => {
+    it("2000자가 넘는 주소는 링크 없이 글자로만", () => {
+      const url = `https://dev.example.com/a?x=${"a".repeat(2100)}`;
+      const parts = richText(`테스트 ${url} 확인`);
+      expect(parts.some((part) => part.text.link)).toBe(false);
+      expect(parts.map((part) => part.text.content).join("")).toBe(`테스트 ${url} 확인`);
+    });
+
+    it("한글이 든 주소는 보이는 글자는 그대로, 링크 주소는 인코딩", () => {
+      const parts = richText("https://dev.example.com/search?q=신발 확인");
+      expect(parts[0]).toEqual({
+        type: "text",
+        text: {
+          content: "https://dev.example.com/search?q=신발",
+          link: { url: "https://dev.example.com/search?q=%EC%8B%A0%EB%B0%9C" },
+        },
+      });
+    });
+
+    it("이미 인코딩된 주소는 다시 인코딩하지 않는다", () => {
+      const url = "https://dev.example.com/search?q=%EC%8B%A0%EB%B0%9C";
+      expect(richText(url)[0]?.text.link?.url).toBe(url);
+    });
+  });
+
   it("주석(annotations)을 모든 조각에 적용", () => {
     expect(richText("a", { bold: true })).toEqual([
       { type: "text", text: { content: "a" }, annotations: { bold: true } },

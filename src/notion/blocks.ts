@@ -43,12 +43,24 @@ function textPart(content: string, url?: string, annotations?: RichText["annotat
   }));
 }
 
-/** 호스트가 있는 http(s) 주소인지 */
-function isLinkableUrl(url: string): boolean {
+/** Notion 링크 주소 최대 길이 */
+const LINK_URL_MAX = 2000;
+const NON_ASCII = /[^\x20-\x7E]/;
+
+/**
+ * 링크로 보낼 주소. Notion이 거부해 등록 전체가 실패하는 주소는 null (링크 없이 글자로만 넣는다).
+ *  - 호스트가 없는 주소("http://..." 같은 자리표시, B2)
+ *  - 2000자가 넘는 주소 (B6)
+ * 한글 등이 든 주소는 인코딩한다 ("?q=신발" → "?q=%EC%8B%A0%EB%B0%9C"). 이미 인코딩된 "%XX"는 그대로 둔다.
+ */
+function linkUrl(url: string): string | null {
   try {
-    return new URL(url).hostname !== "";
+    const parsed = new URL(url);
+    if (parsed.hostname === "") return null;
+    const href = NON_ASCII.test(url) ? parsed.href : url;
+    return href.length > LINK_URL_MAX ? null : href;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -58,11 +70,11 @@ export function richText(text: string, annotations?: RichText["annotations"]): R
   let last = 0;
   for (const match of text.matchAll(URL_IN_TEXT)) {
     const url = match[0].replace(TRAILING_PUNCTUATION, "");
-    // 주소로 해석되지 않으면("http://..." 같은 자리표시) 링크로 만들지 않는다. Notion이 등록 전체를 거부한다 (B2)
-    if (!isLinkableUrl(url)) continue;
+    const href = linkUrl(url);
+    if (!href) continue;
     const index = match.index ?? 0;
     if (index > last) parts.push(...textPart(text.slice(last, index), undefined, annotations));
-    parts.push(...textPart(url, url, annotations));
+    parts.push(...textPart(url, href, annotations));
     last = index + url.length;
   }
   if (last < text.length) parts.push(...textPart(text.slice(last), undefined, annotations));
