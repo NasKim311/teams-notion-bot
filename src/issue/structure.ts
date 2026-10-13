@@ -3,7 +3,7 @@ import { labelKey, matchSectionLabel } from "./sections";
 import { isHeaderLine, normalizeText } from "./text";
 
 // 새 이슈 본문을 고정 틀로 정리한다: 현상 → 테스트 URL → 원인 → 처리·해결 → 기대 동작 → 참고 (내용이 없어도 제목은 모두 넣음).
-//  - 팀 양식 라벨을 표준 섹션으로 모은다
+//  - 팀 양식 라벨을 표준 섹션으로 모은다. 섹션 제목이 아닌 줄(다른 라벨 포함)은 쓴 자리의 섹션에 둔다
 //  - 첫 메시지에서 라벨 없이 쓴 글은 현상으로
 //  - Teams 머리글(작성자·시간)과 이후 답글의 라벨 없는 글(대화)은 넣지 않는다. 답글 속 라벨 글은 해당 섹션으로
 //  - 브랜치·MR·레드마인 링크만 있는 줄, 관련 파일 라벨 아래 파일 경로만 있는 줄은 컬럼에 있으므로 뺀다
@@ -35,11 +35,6 @@ const MAIN_LABELS = keyMap([
   ["fix", ["해결", "해결 방법", "이슈 해결", "처리 상황", "개선", "처리·해결"]],
   ["expected", ["기대 동작"]],
   ["note", ["참고", SECTION_TITLES.note]],
-]);
-/** 섹션 안에 "▸ 라벨" 줄을 남기고 옮기는 라벨 (그 외 모르는 라벨은 참고로) */
-const SUB_LABELS = keyMap([
-  ["symptom", ["경로", "위치", "재현", "재현 방법"]],
-  ["note", ["관련 추가 이슈", "우려"]],
 ]);
 /** 값이 컬럼(브랜치 명·MR 링크·관련 파일)에 들어가는 라벨 */
 const DEV_LABELS = new Set(["브랜치명", "작업 브랜치명", "Merge Request", "관련 파일"].map(labelKey));
@@ -100,9 +95,10 @@ export function structureBody(body: string): string {
         if (main) {
           target = main;
         } else {
-          const sub = SUB_LABELS.get(key) ?? "note";
-          sections[sub].push("", `▸ ${section.label}`);
-          target = sub;
+          // 섹션 제목이 아닌 라벨("재현 방법", "[표시되는 내용]", "우려")은 쓴 자리의 섹션 안에 "▸ 라벨"로 둔다.
+          // 브랜치·관련 파일 아래(본문에 없는 섹션)나 답글이면 둘 섹션이 없으므로 참고로.
+          if (target === "dev" || target === "skip") target = "note";
+          sections[target].push("", `▸ ${section.label}`);
         }
       }
       if (section.rest) handleText(section.rest);

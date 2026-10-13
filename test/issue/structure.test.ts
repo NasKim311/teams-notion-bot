@@ -98,9 +98,39 @@ describe("structureBody", () => {
     );
   });
 
-  it("세부 라벨(경로·위치·재현)은 현상 안에 '▸ 라벨'로, 모르는 라벨은 참고로", () => {
-    const result = structureBody(body("현상 : 흔들림", "재현 방법 : 모바일 접속", "[표시되는 내용]", "빈 쿠폰"));
-    expect(result).toBe(frame({ symptom: "흔들림\n\n▸ 재현 방법\n모바일 접속", note: "▸ 표시되는 내용\n빈 쿠폰" }));
+  it("섹션 제목이 아닌 라벨은 쓴 자리의 섹션 안에 '▸ 라벨'로 남는다", () => {
+    const result = structureBody(
+      body(
+        "현상 : 흔들림",
+        "재현 방법 : 모바일 접속",
+        "[표시되는 내용]",
+        "빈 쿠폰",
+        "원인 : 높이 계산",
+        "우려 : iOS도 확인",
+      ),
+    );
+    expect(result).toBe(
+      frame({
+        symptom: "흔들림\n\n▸ 재현 방법\n모바일 접속\n\n▸ 표시되는 내용\n빈 쿠폰",
+        cause: "높이 계산\n\n▸ 우려\niOS도 확인",
+      }),
+    );
+  });
+
+  it("섹션 제목이 아닌 줄은 쓴 자리에 그대로 (링크 줄 포함, B4)", () => {
+    const result = structureBody(
+      body("🐞 현상 : 버튼 색이 다름", "🎯 기대 동작 : 시안대로", "링크 : https://www.figma.com/file/abc (시안)"),
+    );
+    expect(result).toBe(
+      frame({ symptom: "버튼 색이 다름", expected: "시안대로\n링크 : https://www.figma.com/file/abc (시안)" }),
+    );
+  });
+
+  it("답글 속 모르는 라벨은 지금 섹션이 없으므로 참고로", () => {
+    const result = structureBody(
+      body("— 홍길동 · 오후 1:32", "현상 : 깨짐", "— 김개발 · 오후 1:40", "[확인 결과]", "재현됨"),
+    );
+    expect(result).toBe(frame({ symptom: "깨짐", note: "▸ 확인 결과\n재현됨" }));
   });
 
   it("코드 줄은 그대로 두어 코드 블록이 된다", () => {
@@ -114,7 +144,7 @@ describe("structureBody", () => {
   });
 
   it("참고 섹션 내용도 다시 정리하면 참고에 그대로 남는다 (긴 참고 제목도 섹션으로 인식)", () => {
-    const once = structureBody(body("이슈 사항 : 로그인 안 됨", "", "관련 추가 이슈 : 회원가입도 확인 필요"));
+    const once = structureBody(body("이슈 사항 : 로그인 안 됨", "", "참고 :", "관련 추가 이슈 : 회원가입도 확인 필요"));
     expect(once).toBe(frame({ symptom: "로그인 안 됨", note: "▸ 관련 추가 이슈\n회원가입도 확인 필요" }));
     expect(structureBody(once)).toBe(once);
   });

@@ -13,10 +13,12 @@ import { cleanTitle, makeIssueTitle, withScope } from "./title";
 //   제목: [버그] 한 줄 요약   (없으면 title.ts 규칙으로 자동 생성)
 //   작성자: 홍길동            (없으면 Teams 머리글에서)
 //   본문...
-// Teams 메시지 링크(링크:/원문: 줄, 링크만 있는 줄)는 저장하지 않고 본문에서 뺀다.
+// Teams 메시지 링크(링크:/원문: 줄의 값이 Teams 링크이거나 비어 있을 때, 링크만 있는 줄)는 저장하지 않고 본문에서 뺀다.
+// 링크:/원문: 줄이라도 다른 주소·글이면 본문에 남긴다 (B4).
 
 const FIELD_LINE = /^(제목|작성자|원문 링크|원문|링크)\s*[:：]\s*(.*)$/;
-const TEAMS_LINK = /^https:\/\/teams\.(?:microsoft\.com|cloud\.microsoft)\/l\/message\/[^\s<>"'\])]+$/;
+const TEAMS_LINK_START = /^https:\/\/teams\.(?:microsoft\.com|cloud\.microsoft)\/l\/message\/[^\s<>"'\])]+/;
+const TEAMS_LINK = new RegExp(`${TEAMS_LINK_START.source}$`);
 
 export interface ParseOptions {
   /** Redmine 일감 주소 접두어 */
@@ -45,6 +47,8 @@ export function prepare(raw: string): Prepared {
       const [, key, value = ""] = field;
       if (key === "제목") title ??= value.trim() || undefined;
       else if (key === "작성자") author ??= value.trim() || undefined;
+      // 링크:/원문: 줄은 Teams 링크이거나 비어 있을 때만 뺀다 (피그마 링크·"기획서 12페이지"는 남김, B4)
+      else if (value.trim() !== "" && !TEAMS_LINK_START.test(value.trim())) bodyLines.push(line);
       continue;
     }
     if (TEAMS_LINK.test(trimmed)) continue;

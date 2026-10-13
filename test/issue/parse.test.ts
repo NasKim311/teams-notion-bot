@@ -40,13 +40,14 @@ describe("parsePastedText — 추천 양식", () => {
     expect(issue.body).toBe("권한 부탁드립니다");
   });
 
-  it("전각 콜론, 원문/원문 링크/링크 줄은 저장하지 않고 본문에서 뺀다", () => {
+  it("전각 콜론, Teams 링크가 든 원문/원문 링크/링크 줄은 저장하지 않고 본문에서 뺀다", () => {
     expect(parsePastedText(`작성자： 김개발\n원문 링크: ${LINK}\n내용`)).toMatchObject({
       author: "김개발",
       body: "내용",
     });
     expect(parsePastedText(`원문: ${LINK}\n내용`).body).toBe("내용");
-    expect(parsePastedText("링크: https://example.com/a?b=1\n내용").body).toBe("내용");
+    // Teams 링크가 아니면 남긴다 (B4)
+    expect(parsePastedText("링크: https://example.com/a?b=1\n내용").body).toBe("링크: https://example.com/a?b=1\n내용");
   });
 });
 
@@ -236,6 +237,20 @@ describe("회귀: 말머리 대괄호", () => {
       "이슈 사항 : src/views/e2e/pages/E2eCheck.tsx 12번째 줄\n[테스트] 자동 검증용 이슈\n기대 동작 : 정상",
     );
     expect(issue.title).toBe("[e2e] [테스트] 자동 검증용 이슈");
+  });
+});
+
+describe("회귀 B4: '링크:'·'원문:' 줄은 Teams 링크이거나 비어 있을 때만 뺀다", () => {
+  it.each([
+    ["링크 : https://www.figma.com/file/abc123 (쿠폰 상세 시안)"],
+    ["원문 : 기획서 v2.3 12페이지 참고"],
+    ["원문 링크: https://docs.example.com/spec"],
+  ])("Teams 링크가 아니면 본문에 남긴다: %s", (line) => {
+    expect(parsePastedText(`🐞 현상 : 버튼 색이 다름\n${line}`).body).toContain(line);
+  });
+
+  it.each([[`링크: ${LINK}`], [`원문 : ${LINK} 참고`], ["링크 :"]])("Teams 링크나 빈 값이면 뺀다: %s", (line) => {
+    expect(parsePastedText(`🐞 현상 : 버튼 색이 다름\n${line}`).body).toBe("🐞 현상 : 버튼 색이 다름");
   });
 });
 
