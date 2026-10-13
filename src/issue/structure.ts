@@ -2,26 +2,27 @@ import { isFileOnlyLine } from "./extract";
 import { labelKey, matchSectionLabel } from "./sections";
 import { isHeaderLine, normalizeText } from "./text";
 
-// 새 이슈 본문을 고정 틀로 정리한다: 현상 → 원인 → 처리·해결 → 기대 동작 → 참고 (내용이 없어도 제목은 모두 넣음).
+// 새 이슈 본문을 고정 틀로 정리한다: 현상 → 테스트 URL → 원인 → 처리·해결 → 기대 동작 → 참고 (내용이 없어도 제목은 모두 넣음).
 //  - 팀 양식 라벨을 표준 섹션으로 모은다
 //  - 첫 메시지에서 라벨 없이 쓴 글은 현상으로
 //  - Teams 머리글(작성자·시간)과 이후 답글의 라벨 없는 글(대화)은 넣지 않는다. 답글 속 라벨 글은 해당 섹션으로
 //  - 브랜치·MR·레드마인 링크만 있는 줄, 관련 파일 라벨 아래 파일 경로만 있는 줄은 컬럼에 있으므로 뺀다
 // 결과는 "[ 🐞 현상 ]" 같은 대괄호 라벨 텍스트라 blocks.ts가 소제목으로 바꾼다.
 
-type SectionId = "symptom" | "expected" | "cause" | "fix" | "note";
+type SectionId = "symptom" | "testUrl" | "expected" | "cause" | "fix" | "note";
 /** dev: 브랜치/MR 라벨 아래, skip: 답글의 라벨 없는 대화 */
 type Target = SectionId | "dev" | "skip";
 
 export const SECTION_TITLES: Record<SectionId, string> = {
   symptom: "🐞 현상",
+  testUrl: "🌐 테스트 URL",
   expected: "🎯 기대 동작",
   cause: "🔍 원인",
   fix: "🛠 처리·해결",
   // 스크린샷이 본문 뒤(참고 아래)에 붙으므로 제목에 이미지를 함께 적는다
   note: "📎 참고(이미지 등 참고할만한 자료)",
 };
-const ORDER: SectionId[] = ["symptom", "cause", "fix", "expected", "note"];
+const ORDER: SectionId[] = ["symptom", "testUrl", "cause", "fix", "expected", "note"];
 
 const keyMap = (entries: [SectionId, string[]][]) =>
   new Map(entries.flatMap(([id, labels]) => labels.map((label) => [labelKey(label), id] as const)));
@@ -29,6 +30,7 @@ const keyMap = (entries: [SectionId, string[]][]) =>
 /** 표준 섹션으로 그대로 옮기는 라벨 (섹션 제목 자체도 포함해 이미 정리된 본문을 다시 읽을 수 있게) */
 const MAIN_LABELS = keyMap([
   ["symptom", ["이슈 사항", "이슈", "이슈 현상", "현상", "문제점"]],
+  ["testUrl", ["테스트 URL", "테스트 경로"]],
   ["cause", ["원인", "이슈 원인", "이슈 발생 원인"]],
   ["fix", ["해결", "해결 방법", "이슈 해결", "처리 상황", "개선", "처리·해결"]],
   ["expected", ["기대 동작"]],
@@ -46,7 +48,14 @@ const LONE_DEV_LINE =
   /^(?:(?:feature|bugfix|hotfix|release|fix|refactor)\/[\w.\-#/]+|https?:\/\/\S*(?:\/merge_requests\/\d+|redmine\S*\/issues\/\d+)\S*?)[.,]?$/i;
 
 export function structureBody(body: string): string {
-  const sections: Record<SectionId, string[]> = { symptom: [], expected: [], cause: [], fix: [], note: [] };
+  const sections: Record<SectionId, string[]> = {
+    symptom: [],
+    testUrl: [],
+    expected: [],
+    cause: [],
+    fix: [],
+    note: [],
+  };
   let target: Target = "symptom";
   let devLabel = "";
   let seenContent = false;

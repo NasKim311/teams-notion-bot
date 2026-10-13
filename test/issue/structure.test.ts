@@ -4,10 +4,18 @@ import { toBlocks } from "../../src/notion/blocks";
 
 const body = (...rows: string[]) => rows.join("\n");
 
-/** 기대 결과: 다섯 섹션 제목은 항상 있고, 내용은 있는 것만 */
-function frame(content: { symptom?: string; expected?: string; cause?: string; fix?: string; note?: string }): string {
+/** 기대 결과: 여섯 섹션 제목은 항상 있고, 내용은 있는 것만 */
+function frame(content: {
+  symptom?: string;
+  testUrl?: string;
+  expected?: string;
+  cause?: string;
+  fix?: string;
+  note?: string;
+}): string {
   const sections: [string, string | undefined][] = [
     ["🐞 현상", content.symptom],
+    ["🌐 테스트 URL", content.testUrl],
     ["🔍 원인", content.cause],
     ["🛠 처리·해결", content.fix],
     ["🎯 기대 동작", content.expected],
@@ -42,6 +50,7 @@ describe("structureBody", () => {
     expect(blocks.map((b) => b.type)).toEqual([
       "heading_3",
       "paragraph",
+      "heading_3",
       "heading_3",
       "heading_3",
       "heading_3",
@@ -114,6 +123,7 @@ describe("structureBody", () => {
     const result = structureBody(
       body(
         "🐞 현상 : 총 개수가 다르게 표시됨",
+        "🌐 테스트 URL : https://dev-m.example.com/fit/fits",
         "🔍 원인",
         "length 사용",
         "🛠 처리·해결 :",
@@ -126,11 +136,26 @@ describe("structureBody", () => {
     expect(result).toBe(
       frame({
         symptom: "총 개수가 다르게 표시됨",
+        testUrl: "https://dev-m.example.com/fit/fits",
         cause: "length 사용",
         expected: "total로 표시",
         note: "첨부 이미지",
       }),
     );
+  });
+
+  it.each([
+    ["🌐 테스트 URL", "🌐 테스트 URL"],
+    ["테스트 경로 :", "테스트 경로 :"],
+    ["테스트URL:", "테스트URL:"],
+  ])("테스트 URL 라벨(%s) 아래 주소는 테스트 URL 섹션으로, 여러 개면 모두", (label) => {
+    const result = structureBody(
+      body("현상 : 깨짐", label, "https://dev.example.com/a", "https://stg.example.com/a", "원인 : 캐시"),
+    );
+    expect(result).toBe(
+      frame({ symptom: "깨짐", testUrl: "https://dev.example.com/a\nhttps://stg.example.com/a", cause: "캐시" }),
+    );
+    expect(structureBody(result)).toBe(result);
   });
 
   it("관련 파일 아래 파일이 아닌 설명은 참고로", () => {

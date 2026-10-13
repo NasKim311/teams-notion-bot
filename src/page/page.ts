@@ -8,6 +8,7 @@ import styles from "./styles.css";
 const TEMPLATE = [
   "작성자: 홍길동",
   "🐞 현상 : 어떤 화면에서 어떤 문제가 생기는지 (재현 방법 포함)",
+  "🌐 테스트 URL : 문제가 생기는 화면 주소",
   "🔍 원인 : ",
   "🛠 처리·해결 : ",
   "🎯 기대 동작 : 원래 어떻게 동작해야 하는지",
@@ -130,7 +131,7 @@ ${styles}
       </div>
       <label>관련 파일<input data-field="files" maxlength="2000" placeholder="쉼표로 구분 (예: src/views/fit/pages/FitDetail.tsx:75)"></label>
       <label>본문<textarea data-field="body" rows="10"></textarea></label>
-      <div class="hint">새 이슈로 등록하면 본문이 현상 → 원인 → 처리·해결 → 기대 동작 → 참고 순서로 정리돼요 (작성자·시간과 답글 대화는 빠져요). 기존 이슈에 추가할 때는 그대로 붙어요.</div>
+      <div class="hint">새 이슈로 등록하면 본문이 현상 → 테스트 URL → 원인 → 처리·해결 → 기대 동작 → 참고 순서로 정리돼요 (작성자·시간과 답글 대화는 빠져요). 기존 이슈에 추가할 때는 그대로 붙어요.</div>
       <div class="images">
         <div class="hint">스크린샷 (이 카드를 클릭한 뒤 Ctrl+V, 또는 파일 선택)</div>
         <div class="thumbs" data-role="thumbs"></div>

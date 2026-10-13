@@ -54,6 +54,7 @@ describe("buildPageRequest", () => {
           type: "paragraph",
           paragraph: { rich_text: [{ type: "text", text: { content: issue.body } }] },
         },
+        heading("🌐 테스트 URL"),
         heading("🔍 원인"),
         heading("🛠 처리·해결"),
         heading("🎯 기대 동작"),
@@ -114,12 +115,12 @@ describe("createNotionPage", () => {
 
     await createNotionPage({ ...issue, body }, env, fetchMock);
 
-    expect(fetchMock).toHaveBeenCalledTimes(3); // 생성(소제목 1 + 문단 99) + 100 + 35(문단 31 + 빈 섹션 제목 4)
+    expect(fetchMock).toHaveBeenCalledTimes(3); // 생성(소제목 1 + 문단 99) + 100 + 36(문단 31 + 빈 섹션 제목 5)
     const [url, init] = fetchMock.mock.calls[1]!;
     expect(url).toBe("https://api.notion.com/v1/blocks/page-1/children");
     expect(init?.method).toBe("PATCH");
     expect(JSON.parse(init?.body as string).children).toHaveLength(100);
-    expect(JSON.parse(fetchMock.mock.calls[2]![1]?.body as string).children).toHaveLength(35);
+    expect(JSON.parse(fetchMock.mock.calls[2]![1]?.body as string).children).toHaveLength(36);
   });
 
   it("오류 응답이면 status/code를 담은 NotionError (토큰 미포함)", async () => {

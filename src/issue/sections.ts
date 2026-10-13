@@ -29,6 +29,8 @@ const COLON_LABELS = [
   "Merge Request",
   "참고",
   "관련 파일",
+  "테스트 URL",
+  "테스트 경로",
   // 본문 고정 틀(structure.ts)의 섹션 이름 — Notion에서 다시 읽을 때와 팀 공유 양식에서 인식
   "처리·해결",
   "참고(이미지 등 참고할만한 자료)",
