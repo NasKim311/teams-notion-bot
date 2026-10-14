@@ -19,6 +19,20 @@
     return "";
   }
 
+  // 비밀번호가 저장되어 있으면 입력 칸 대신 "저장됨" 표시만 보여 준다. 없거나 틀렸을 때만 입력 칸이 나온다
+  function syncAuth() {
+    const saved = storage("get");
+    const usingSaved = saved !== "" && $("password").value === saved;
+    $("authSaved").hidden = !usingSaved;
+    $("authForm").hidden = usingSaved;
+  }
+
+  function askPassword() {
+    $("authSaved").hidden = true;
+    $("authForm").hidden = false;
+    $("password").focus();
+  }
+
   function showStatus(kind, text) {
     const box = $("status");
     box.hidden = false;
@@ -51,7 +65,10 @@
 
   function api(path, payload, isForm) {
     const password = $("password").value;
-    if (!password) return Promise.reject(new Error("비밀번호를 입력해주세요."));
+    if (!password) {
+      askPassword();
+      return Promise.reject(new Error("비밀번호를 입력해주세요."));
+    }
     const headers = { Authorization: `Bearer ${encodeURIComponent(password)}` };
     if (!isForm) headers["Content-Type"] = "application/json";
     return fetch(path, {
@@ -63,10 +80,14 @@
         .json()
         .catch(() => ({}))
         .then((data) => {
-          if (res.status === 401) storage("clear");
+          if (res.status === 401) {
+            storage("clear");
+            askPassword();
+          }
           if (!res.ok) throw new Error(data.error || `요청 실패 (${res.status})`);
           if ($("remember").checked) storage("set", password);
           else storage("clear");
+          syncAuth();
           return data;
         }),
     );
@@ -80,6 +101,29 @@
 
   function field(card, name) {
     return card.root.querySelector(`[data-field="${name}"]`);
+  }
+
+  // 오른쪽 영역: 미리보기 전에는 안내 문구, 후에는 카드와 아래쪽 등록 막대
+  function showReview(on) {
+    $("reviewSection").hidden = !on;
+    $("emptyState").hidden = on;
+    $("actionBar").hidden = !on;
+  }
+
+  const TYPE_CLASS = { 버그: "bug", 개선: "improve", 운영: "ops" };
+
+  function syncBadge(card) {
+    const type = field(card, "type").value;
+    const badge = card.root.querySelector('[data-role="typeBadge"]');
+    badge.textContent = type;
+    badge.className = `badge ${TYPE_CLASS[type] || ""}`;
+  }
+
+  /** 제목 옆 건수와 등록 버튼의 "(N건)": 등록 안 함·완료된 카드는 빼고 센다 */
+  function updateCount() {
+    const pending = cards.filter((c) => !c.done && !c.root.querySelector('[data-role="skip"]').checked).length;
+    $("cardCount").textContent = cards.length ? `· 이슈 ${cards.length}건` : "";
+    $("submitBtn").textContent = pending ? `Notion에 등록 (${pending}건)` : "Notion에 등록";
   }
 
   // ── 스크린샷 ─────────────────────────────────────────────
@@ -230,17 +274,23 @@
         activeCard = card;
       });
       root.querySelector('[data-role="index"]').textContent =
-        issues.length > 1 ? `이슈 ${i + 1} / ${issues.length}` : "";
+        issues.length > 1 ? `이슈 ${i + 1} / ${issues.length}` : "이슈";
       root.querySelector('[data-role="skipWrap"]').hidden = issues.length < 2;
       root.querySelector('[data-role="skip"]').addEventListener("change", (e) => {
         root.classList.toggle("skipped", e.target.checked);
+        updateCount();
       });
       fields.forEach((name) => {
         field(card, name).value = fieldValue(issue, name);
       });
+      syncBadge(card);
+      field(card, "type").addEventListener("change", () => {
+        syncBadge(card);
+      });
       list.appendChild(root);
       return card;
     });
+    updateCount();
   }
 
   // 이미 등록한 카드가 있으면 다시 미리보기하지 않는다. 카드를 새로 만들면 완료 표시가 사라져 같은 이슈가 또 등록된다 (B3)
@@ -280,8 +330,12 @@
         if (data.lookupError) notes.push(data.lookupError);
         if (notes.length) showStatus("", notes.join(" "));
         else hideStatus();
-        $("reviewSection").hidden = false;
-        field(cards[0], "title").focus();
+        showReview(true);
+        // 긴 제목도 앞부분부터 보이게 커서를 맨 앞에 둔다
+        const title = field(cards[0], "title");
+        title.focus();
+        title.setSelectionRange(0, 0);
+        title.scrollLeft = 0;
       })
       .catch((err) => {
         showStatus("error", err.message);
@@ -309,6 +363,7 @@
     result.hidden = false;
     result.className = "result ok";
     setLink(result, label === "update" ? "✅ 기존 이슈에 추가됨" : "✅ 등록됨", url);
+    updateCount();
   }
 
   function send(card) {
@@ -373,14 +428,14 @@
         const created = cards.filter((card) => card.done === "create").length;
         const updated = cards.filter((card) => card.done === "update").length;
         showStatus("ok", `✅ 새 이슈 ${created}건${updated ? `, 기존 이슈 업데이트 ${updated}건` : ""}${recordNote}`);
-        $("pasteSection").hidden = true;
         $("submitBtn").hidden = true;
-        $("doneSection").hidden = false;
+        $("backBtn").hidden = true;
+        $("newBtn").hidden = false;
       })
       .catch((err) => {
         showStatus("error", `등록 중 오류: ${err.message} (완료된 이슈는 다시 등록되지 않아요)`);
         // 일부만 등록됐어도 처음부터 다시 시작할 수 있게 한다
-        if (hasDone()) $("doneSection").hidden = false;
+        if (hasDone()) $("newBtn").hidden = false;
       })
       .finally(() => {
         setBusy(false);
@@ -404,19 +459,25 @@
     $("cards").textContent = "";
     cards = [];
     $("split").checked = true;
-    $("pasteSection").hidden = false;
-    $("reviewSection").hidden = true;
+    showReview(false);
     $("submitBtn").hidden = false;
-    $("doneSection").hidden = true;
+    $("backBtn").hidden = false;
+    $("newBtn").hidden = true;
+    updateCount();
     hideStatus();
     $("paste").focus();
   }
 
   $("password").value = storage("get");
+  syncAuth();
+  $("changePassword").addEventListener("click", () => {
+    askPassword();
+    $("password").select();
+  });
   $("previewBtn").addEventListener("click", preview);
   $("submitBtn").addEventListener("click", submit);
   $("backBtn").addEventListener("click", () => {
-    $("reviewSection").hidden = true;
+    showReview(false);
     $("paste").focus();
   });
   $("newBtn").addEventListener("click", reset);
@@ -451,5 +512,5 @@
     if (!data.getData("text/plain")) e.preventDefault();
     addFiles(images, imageTarget());
   });
-  ($("password").value ? $("paste") : $("password")).focus();
+  ($("authForm").hidden ? $("paste") : $("password")).focus();
 })();

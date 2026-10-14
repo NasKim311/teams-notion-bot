@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { FORM_PLACEHOLDERS } from "../../src/issue/form";
 import { parsePastedText } from "../../src/issue/parse";
-import { TEMPLATE } from "../../src/page/page";
+import client from "../../src/page/client.js";
+import { renderPage, TEMPLATE } from "../../src/page/page";
 
 /** 팀에 공지한 <이슈 공유 양식> (2026-10-13) */
 const NOTICE = [
@@ -28,5 +29,24 @@ describe("TEMPLATE", () => {
     expect(issue.files).toBe("");
     expect(issue.areas).toEqual([]);
     expect(issue.author).toBe("홍길동");
+  });
+});
+
+describe("renderPage", () => {
+  const html = renderPage("test-nonce");
+
+  // 화면 코드(client.js)는 자동 테스트가 없어서, 찾는 요소가 HTML에 있는지만이라도 확인한다
+  it("client.js가 찾는 id는 모두 HTML에 있다", () => {
+    const ids = [...new Set([...client.matchAll(/\$\("(\w+)"\)/g)].map((m) => m[1]))];
+    expect(ids.length).toBeGreaterThan(10);
+    for (const id of ids) expect(html, id).toContain(`id="${id}"`);
+  });
+
+  it("client.js가 찾는 data-role·data-field는 모두 카드 템플릿에 있다", () => {
+    const roles = [...new Set([...client.matchAll(/data-role="(\w+)"/g)].map((m) => m[1]))];
+    for (const role of roles) expect(html, role).toContain(`data-role="${role}"`);
+    const fields = client.match(/const fields = \[([^\]]+)\]/)?.[1]?.match(/\w+/g) ?? [];
+    expect(fields.length).toBeGreaterThan(5);
+    for (const name of fields) expect(html, name).toContain(`data-field="${name}"`);
   });
 });

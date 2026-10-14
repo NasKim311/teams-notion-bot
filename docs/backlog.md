@@ -41,6 +41,7 @@
 - **상태:** 열림 · 위치 `src/page/client.js`
 - **근거:** 카드 렌더링, 이미지 유지, 순차 등록, 기존 이슈 선택이 수동 확인에만 의존한다 (Biome 린트는 적용됨). B3(해결됨)도 테스트가 있었으면 잡혔을 문제다.
 - **수정안:** 브라우저 E2E(Playwright 등, devDependency)로 미리보기·등록 흐름을 가짜 fetch로 검증.
+- **부분 진행 (2026-10-14):** `test/page/page.test.ts`가 client.js가 찾는 id·data-role·data-field가 HTML에 모두 있는지 확인한다 (화면 구조를 바꿀 때 빠뜨리는 실수 방지). 동작 흐름 테스트는 아직 없다.
 
 ### ⚪ I7. 답글 작성자 이름에 괄호가 없으면 답글로 인식 못 함
 - **상태:** 보류 (실제 사례가 생기면 진행) · 위치 `src/issue/header.ts` (`DISPLAY_NAME`)
