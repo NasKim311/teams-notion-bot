@@ -122,6 +122,7 @@ ${styles}
         <select data-role="target" aria-label="등록 방식"></select>
         <span class="status-pick" data-role="statusWrap">상태 <select data-role="status" aria-label="상태 변경"></select></span>
         <a data-role="matchLink" target="_blank" rel="noopener noreferrer">열기 ↗</a>
+        <span class="kept" data-role="keptHint" hidden>기존 이슈에 추가하면 제목·유형·작성자는 기존 값이 유지되고, 본문은 업데이트로 붙어요.</span>
       </div>
       <div class="fields">
         <label>제목<input data-field="title" maxlength="200"></label>

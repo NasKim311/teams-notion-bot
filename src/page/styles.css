@@ -483,6 +483,16 @@ label.file-pick input {
   align-items: center;
   gap: 6px;
 }
+.kept {
+  flex-basis: 100%;
+  font-size: 12px;
+}
+input:disabled,
+select:disabled,
+textarea:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
 .match a {
   color: inherit;
 }

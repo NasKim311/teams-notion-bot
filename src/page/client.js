@@ -132,6 +132,8 @@
   // ── 스크린샷 ─────────────────────────────────────────────
   const IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"];
   const IMAGE_MAX = 5 * 1024 * 1024;
+  // Notion 파일 업로드는 1시간 안에 블록으로 붙여야 한다. 여유를 두고 50분이 지나면 다시 올린다
+  const UPLOAD_TTL_MS = 50 * 60 * 1000;
   let pendingImages = []; // 미리보기 전에 붙인 이미지 → 첫 번째 카드로
   let activeCard = null;
 
@@ -144,7 +146,7 @@
       showStatus("error", "이미지는 5MB 이하만 첨부할 수 있어요.");
       return null;
     }
-    return { file: file, url: URL.createObjectURL(file), id: null };
+    return { file: file, url: URL.createObjectURL(file), id: null, uploadedAt: 0 };
   }
 
   function renderThumbs(container, list) {
@@ -196,11 +198,12 @@
       .reduce(
         (chain, img) =>
           chain.then(() => {
-            if (img.id) return;
+            if (img.id && Date.now() - img.uploadedAt < UPLOAD_TTL_MS) return;
             const form = new FormData();
             form.append("file", img.file, img.file.name || "screenshot.png");
             return api("/api/uploads", form, true).then((data) => {
               img.id = data.id;
+              img.uploadedAt = Date.now();
             });
           }),
         Promise.resolve(),
@@ -214,6 +217,9 @@
     el.textContent = text;
     return el;
   }
+
+  /** 기존 이슈에 추가할 때 반영되지 않는 칸 (서버 buildUpdateProperties가 쓰지 않음) */
+  const KEPT_FIELDS = ["title", "type", "author"];
 
   function setupMatch(card, lookup, statusOptions) {
     const matches = lookup?.matches || [];
@@ -238,6 +244,11 @@
       link.hidden = !m;
       if (m && /^https:[/][/]/.test(m.url)) link.href = m.url;
       root.querySelector('[data-role="statusWrap"]').hidden = !m;
+      // 기존 이슈에 추가할 때는 제목·유형·작성자가 반영되지 않으므로 고칠 수 없게 흐리게 둔다
+      root.querySelector('[data-role="keptHint"]').hidden = !m;
+      KEPT_FIELDS.forEach((name) => {
+        field(card, name).disabled = Boolean(m);
+      });
     }
     target.addEventListener("change", sync);
     sync();
