@@ -125,6 +125,9 @@ body {
   position: sticky;
   top: 16px;
   align-self: start;
+  /* 화면이 낮거나 추천 양식을 펼쳐도 미리보기 버튼까지 스크롤할 수 있게 (아래쪽 막대 높이만큼 비움) */
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
 }
 .panel,
 .card {
@@ -173,6 +176,7 @@ h2 {
   }
   .left {
     position: static;
+    max-height: none;
   }
   .topbar {
     padding: 8px 16px;
@@ -236,6 +240,9 @@ label.check input {
 }
 .opt {
   margin-top: 12px;
+}
+.panel-head .opt {
+  margin-top: 0;
 }
 .hint {
   color: var(--muted);
@@ -305,6 +312,11 @@ button:disabled {
   cursor: default;
 }
 /* 파일 입력은 "파일 선택" 글자로 대신 보여 준다 (키보드 포커스는 유지) */
+label.file-pick:focus-within {
+  outline: 2px solid var(--field-border);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
 label.file-pick input {
   position: absolute;
   width: 1px;

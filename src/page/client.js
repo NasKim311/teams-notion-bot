@@ -108,6 +108,9 @@
     $("reviewSection").hidden = !on;
     $("emptyState").hidden = on;
     $("actionBar").hidden = !on;
+    $("cardCount").hidden = !on;
+    // 나누기 체크는 미리보기 결과(splittable)에 따라 preview()에서 다시 보인다
+    if (!on) $("splitToggle").hidden = true;
   }
 
   const TYPE_CLASS = { 버그: "bug", 개선: "improve", 운영: "ops" };
@@ -435,7 +438,11 @@
       .catch((err) => {
         showStatus("error", `등록 중 오류: ${err.message} (완료된 이슈는 다시 등록되지 않아요)`);
         // 일부만 등록됐어도 처음부터 다시 시작할 수 있게 한다
-        if (hasDone()) $("newBtn").hidden = false;
+        // 일부만 등록됐으면 다시 미리보기할 수 없으므로 "다시 붙여넣기" 대신 "새 이슈 작성"을 보여 준다 (막대가 숨지 않게)
+        if (hasDone()) {
+          $("backBtn").hidden = true;
+          $("newBtn").hidden = false;
+        }
       })
       .finally(() => {
         setBusy(false);
@@ -477,6 +484,10 @@
   $("previewBtn").addEventListener("click", preview);
   $("submitBtn").addEventListener("click", submit);
   $("backBtn").addEventListener("click", () => {
+    if (hasDone()) {
+      showStatus("error", BLOCKED_MESSAGE);
+      return;
+    }
     showReview(false);
     $("paste").focus();
   });

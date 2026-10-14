@@ -93,7 +93,7 @@ ${styles}
       <label class="check opt" id="splitToggle" hidden><input id="split" type="checkbox" checked> <span id="splitLabel">이슈별로 나눠 등록</span></label>
     </div>
     <div id="status" role="status" aria-live="polite" hidden></div>
-    <div class="empty" id="emptyState">왼쪽에 Teams 내용을 붙여넣고 미리보기를 누르면 여기에 이슈 카드가 나와요.</div>
+    <div class="empty" id="emptyState">Teams 내용을 붙여넣고 미리보기를 누르면 여기에 이슈 카드가 나와요.</div>
     <div id="reviewSection" hidden>
       <div id="cards"></div>
       <p class="hint">새 이슈로 등록하면 본문이 현상 → 테스트 URL → 원인 → 처리·해결 → 기대 동작 → 참고 순서로 정리돼요 (작성자·시간과 답글 대화는 빠져요). 기존 이슈에 추가할 때는 그대로 붙어요.</p>
@@ -103,7 +103,7 @@ ${styles}
 
 <footer class="bar" id="actionBar" hidden>
   <button type="button" class="secondary" id="backBtn">다시 붙여넣기</button>
-  <button type="button" class="secondary" id="newBtn" hidden>새 이슈 작성</button>
+  <button type="button" class="primary" id="newBtn" hidden>새 이슈 작성</button>
   <button type="button" class="primary" id="submitBtn">Notion에 등록</button>
 </footer>
 
