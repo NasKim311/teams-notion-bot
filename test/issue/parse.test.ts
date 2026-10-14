@@ -187,6 +187,41 @@ describe("splitIssueLines / parseIssues", () => {
     expect(issues[0]!.body.startsWith("— 김개발(담당) - 회사 · 2026-09-30 오후 1:25")).toBe(true);
   });
 
+  describe("회귀 B7: 여러 팀원의 이슈 공유를 한 번에 붙여넣기", () => {
+    const text = [
+      "김개발(사원) - 유젠",
+      "오후 1:25",
+      "🐞 현상 : 쿠폰 상세에서 가격이 0원으로 표시됨",
+      "📂 관련 파일 : src/views/cpn/CouponDetail.tsx:75",
+      "",
+      "박개발(대리) - 유젠",
+      "오후 2:10",
+      "🐞 현상 : 마이페이지 주문 목록이 비어 보임",
+      "🎯 기대 동작 : 주문 목록 표시",
+    ].join("\n");
+
+    it("메시지마다 이슈로 나누고 작성자는 각 메시지의 머리글에서", () => {
+      const { issues } = parseIssues(text);
+      expect(issues.map((i) => i.author)).toEqual(["김개발", "박개발"]);
+      expect(issues.map((i) => i.files)).toEqual(["src/views/cpn/CouponDetail.tsx:75", ""]);
+    });
+
+    it("각 이슈 본문에는 자기 머리글만 들어간다 (다음 사람 머리글이 앞 이슈 끝에 붙지 않음)", () => {
+      const { issues } = parseIssues(text);
+      expect(issues[0]!.body).not.toContain("박개발");
+      expect(issues[1]!.body).not.toContain("김개발");
+      expect(issues[1]!.body.startsWith("— 박개발(대리) - 유젠 · 오후 2:10")).toBe(true);
+    });
+
+    it("한 메시지 안의 여러 이슈는 지금처럼 머리글을 공통으로 붙인다", () => {
+      const { issues } = parseIssues(
+        ["김개발(사원) - 유젠", "오후 1:25", "현상 : 첫 번째 문제", "", "현상 : 두 번째 문제"].join("\n"),
+      );
+      expect(issues.map((i) => i.author)).toEqual(["김개발", "김개발"]);
+      expect(issues[1]!.body.startsWith("— 김개발(사원) - 유젠 · 오후 1:25")).toBe(true);
+    });
+  });
+
   it("[ 이슈 ] 주 섹션이 반복되면 등장할 때마다 나눈다", () => {
     const text = [
       "feature/multi_rt",
@@ -288,5 +323,14 @@ describe("회귀 B5: 팀 공지 양식의 예시 문구를 지우지 않고 올�
       "🐞 현상 : 어떤 화면에서 어떤 문제가 생기는지 (재현 방법 포함)\n🔍 원인 : 캐시 키 누락",
     );
     expect(issue.title).toBe("캐시 키 누락");
+  });
+});
+
+describe("회귀 B7: 작성자: 필드는 공통 맥락을 붙인 이슈 모두에 쓴다", () => {
+  it("한 메시지의 여러 이슈는 작성자: 필드 값을 함께 쓴다", () => {
+    const { issues } = parseIssues(
+      ["작성자: 홍길동", "김개발(사원) - 유젠", "오후 1:25", "현상 : 첫 번째", "", "현상 : 두 번째"].join("\n"),
+    );
+    expect(issues.map((i) => i.author)).toEqual(["홍길동", "홍길동"]);
   });
 });

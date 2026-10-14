@@ -3,8 +3,9 @@ import { classify } from "./classify";
 import { extractDevInfo } from "./extract";
 import { stripFormPlaceholders } from "./form";
 import { personName, rewriteHeaders, UNKNOWN_AUTHOR } from "./header";
+import { headerAuthor } from "./messages";
 import { splitIssueLines } from "./split";
-import { normalizeText } from "./text";
+import { isHeaderLine, normalizeText } from "./text";
 import { cleanTitle, makeIssueTitle, withScope } from "./title";
 
 // 붙여넣은 Teams 대화 텍스트 → Issue 초안 (각 모듈을 조립한다).
@@ -97,5 +98,22 @@ export function parsePrepared(
   if (!chunks || options.split === false) {
     return { issues: [buildIssue(prepared.lines, prepared, options)], splittable: chunks !== null };
   }
-  return { issues: chunks.map((chunk) => buildIssue(chunk, prepared, options)), splittable: true };
+  return {
+    // 공통 맥락(첫 이슈와 같은 앞부분)을 붙인 이슈는 전체 작성자(작성자: 필드 포함)를 그대로 쓴다
+    issues: chunks.map((chunk, i) =>
+      buildIssue(chunk, i === 0 || chunk[0] === chunks[0]?.[0] ? prepared : withChunkAuthor(chunk, prepared), options),
+    ),
+    splittable: true,
+  };
+}
+
+/** 나눈 이슈가 자기 머리글로 시작하면(다른 사람의 메시지) 작성자는 그 머리글의 사람 (B7). 전달된 메시지는 마지막 머리글. */
+function withChunkAuthor(chunk: string[], prepared: Prepared): Prepared {
+  const content = chunk.filter((line) => line.trim() !== "");
+  let last: string | undefined;
+  for (const line of content) {
+    if (!isHeaderLine(line)) break;
+    last = line;
+  }
+  return last ? { ...prepared, author: headerAuthor(last) } : prepared;
 }
