@@ -5,6 +5,9 @@ import styles from "./styles.css";
 // 붙여넣기 입력 화면 HTML. 스타일(styles.css)과 브라우저 코드(client.js)는 Wrangler가 텍스트로 읽어 오고,
 // 여기서 nonce가 붙은 <style>/<script>로 인라인한다 (외부 리소스 없음, CSP).
 
+/** 테마 선택을 저장하는 localStorage 키 (client.js의 THEME_KEY와 같아야 함, 테스트로 확인) */
+export const THEME_KEY = "issueFormTheme";
+
 /** 추천 양식: 작성자 줄 + 팀 공지 <이슈 공유 양식>. 예시 문구는 등록할 때 빠진다 (issue/form.ts). */
 export const TEMPLATE = [
   "작성자: 홍길동",
@@ -49,6 +52,10 @@ export function renderPage(nonce: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>이슈 등록</title>
+<script nonce="${nonce}">
+/* 고른 테마를 그리기 전에 적용해 반대 색이 잠깐 보이지 않게 한다 (client.js는 body 끝에서 실행됨) */
+try { const t = localStorage.getItem("${THEME_KEY}"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (_e) {}
+</script>
 <style nonce="${nonce}">
 ${styles}
 </style>
@@ -56,12 +63,19 @@ ${styles}
 <body>
 <header class="topbar">
   <h1>📝 이슈 등록 <small>Teams → Notion 이슈 트래커</small></h1>
+  <div class="topbar-right">
+  <div class="theme" role="group" aria-label="화면 테마">
+    <button type="button" data-theme-choice="system" aria-pressed="true">🖥 시스템</button>
+    <button type="button" data-theme-choice="light" aria-pressed="false">☀ 라이트</button>
+    <button type="button" data-theme-choice="dark" aria-pressed="false">🌙 다크</button>
+  </div>
   <div class="auth">
     <div class="chip" id="authSaved" hidden><i></i>비밀번호 저장됨 · <button type="button" class="link" id="changePassword">변경</button></div>
     <div class="auth-form" id="authForm">
       <input id="password" type="password" autocomplete="current-password" placeholder="비밀번호" aria-label="비밀번호">
       <label class="check"><input id="remember" type="checkbox" checked> 기억하기</label>
     </div>
+  </div>
   </div>
 </header>
 

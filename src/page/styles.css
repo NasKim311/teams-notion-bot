@@ -1,5 +1,6 @@
 /* 입력 화면 스타일 (시안 B3: 웜 그레이 + 블랙, 2단 작업 화면). page.ts가 <style nonce>로 인라인한다 (외부 파일 요청 없음, CSP). */
 :root {
+  color-scheme: light;
   --bg: #f7f6f3;
   --panel: #ffffff;
   --text: #37352f;
@@ -23,8 +24,10 @@
   --ops-bg: #f4f0f7;
   --live: #0f7b6c;
 }
+/* 테마: 기본은 운영체제 설정을 따르고, 위쪽 막대에서 고르면 <html data-theme="light|dark">로 덮어쓴다 */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --bg: #191919;
     --panel: #202020;
     --text: #e6e6e3;
@@ -48,6 +51,31 @@
     --ops-bg: #302838;
     --live: #4dab9a;
   }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #191919;
+  --panel: #202020;
+  --text: #e6e6e3;
+  --muted: #9b9b98;
+  --line: #2f2f2f;
+  --field: #2a2a2a;
+  --field-focus: #252525;
+  --field-border: #4a4a48;
+  --ink: #e6e6e3;
+  --ink-text: #191919;
+  --soft: #2c2c2b;
+  --head: #242424;
+  --shadow: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --ok: #6fb68b;
+  --ok-bg: #233229;
+  --danger: #e0807a;
+  --danger-bg: #3a2524;
+  --warn: #e2c27a;
+  --warn-bg: #3a3222;
+  --ops: #b892d6;
+  --ops-bg: #302838;
+  --live: #4dab9a;
 }
 * {
   box-sizing: border-box;
@@ -102,6 +130,12 @@ body {
   height: 8px;
   border-radius: 50%;
   background: var(--live);
+}
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 .auth-form {
   display: flex;
@@ -310,6 +344,25 @@ button.link,
 button:disabled {
   opacity: 0.55;
   cursor: default;
+}
+/* 테마 3단 선택: 시스템 / 라이트 / 다크 */
+.theme {
+  display: inline-flex;
+  background: var(--soft);
+  border-radius: 6px;
+  padding: 2px;
+}
+.theme button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.theme button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--ink-text);
 }
 /* 파일 입력은 "파일 선택" 글자로 대신 보여 준다 (키보드 포커스는 유지) */
 label.file-pick:focus-within {

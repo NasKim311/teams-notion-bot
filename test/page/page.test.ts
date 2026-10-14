@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { FORM_PLACEHOLDERS } from "../../src/issue/form";
 import { parsePastedText } from "../../src/issue/parse";
 import client from "../../src/page/client.js";
-import { renderPage, TEMPLATE } from "../../src/page/page";
+import { renderPage, TEMPLATE, THEME_KEY } from "../../src/page/page";
 
 /** 팀에 공지한 <이슈 공유 양식> (2026-10-13) */
 const NOTICE = [
@@ -48,5 +48,23 @@ describe("renderPage", () => {
     const fields = client.match(/const fields = \[([^\]]+)\]/)?.[1]?.match(/\w+/g) ?? [];
     expect(fields.length).toBeGreaterThan(5);
     for (const name of fields) expect(html, name).toContain(`data-field="${name}"`);
+  });
+});
+
+describe("화면 테마", () => {
+  const html = renderPage("test-nonce");
+
+  it("시스템/라이트/다크 3단 선택이 있다", () => {
+    for (const choice of ["system", "light", "dark"]) expect(html).toContain(`data-theme-choice="${choice}"`);
+  });
+
+  it("미리 적용하는 스크립트와 client.js가 같은 저장 키를 쓴다", () => {
+    expect(html).toContain(`localStorage.getItem("${THEME_KEY}")`);
+    expect(client).toContain(`const THEME_KEY = "${THEME_KEY}"`);
+  });
+
+  it("고른 테마가 운영체제 설정보다 우선한다 (다크 고정, 시스템 다크여도 라이트 고정)", () => {
+    expect(html).toContain(':root[data-theme="dark"]');
+    expect(html).toContain(':root:not([data-theme="light"])');
   });
 });

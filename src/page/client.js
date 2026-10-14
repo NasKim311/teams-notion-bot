@@ -19,6 +19,24 @@
     return "";
   }
 
+  // ── 화면 테마: 시스템(운영체제 설정) / 라이트 / 다크. 고른 값은 이 브라우저에 저장한다
+  const THEME_KEY = "issueFormTheme";
+
+  function applyTheme(choice) {
+    const theme = choice === "light" || choice === "dark" ? choice : "system";
+    if (theme === "system") delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = theme;
+    document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+      button.setAttribute("aria-pressed", String(button.dataset.themeChoice === theme));
+    });
+    try {
+      if (theme === "system") localStorage.removeItem(THEME_KEY);
+      else localStorage.setItem(THEME_KEY, theme);
+    } catch (_e) {
+      /* 저장소를 쓸 수 없으면 이번 화면에만 적용 */
+    }
+  }
+
   // 비밀번호가 저장되어 있으면 입력 칸 대신 "저장됨" 표시만 보여 준다. 없거나 틀렸을 때만 입력 칸이 나온다
   function syncAuth() {
     const saved = storage("get");
@@ -486,6 +504,12 @@
     $("paste").focus();
   }
 
+  applyTheme(document.documentElement.dataset.theme);
+  document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+    button.addEventListener("click", () => {
+      applyTheme(button.dataset.themeChoice);
+    });
+  });
   $("password").value = storage("get");
   syncAuth();
   $("changePassword").addEventListener("click", () => {
