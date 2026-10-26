@@ -1,13 +1,14 @@
 // 기존 Notion 페이지 본문을 현재 고정 틀(src/structure.ts)로 다시 쓴다.
 // 처음 등록된 본문(첫 구분선 앞)의 글 블록만 바꾸고, 스크린샷과 업데이트(구분선 뒤)는 그대로 둔다.
+// "관련 파일" 컬럼에 값이 있으면 본문 관련 파일 섹션에 없는 파일을 넣는다 (컬럼 값은 그대로 둠).
 // 사용:
 //   npm run notion:restructure                       미리보기만 (scripts/.backups/restructure-preview-*.txt에 전체 결과)
 //   npm run notion:restructure -- --apply            적용 (원본 블록은 scripts/.backups/에 백업)
 //   npm run notion:restructure -- --apply --skip <페이지ID,...>
 import { mkdirSync, writeFileSync } from "node:fs";
-import { structureBody } from "../src/issue/structure";
 import { toBlocks } from "../src/notion/blocks";
 import { blocksToText, readOriginalBody } from "./lib/body";
+import { FILES_COLUMN, structureWithFilesColumn } from "./lib/files-column";
 import { notion, plain, queryAllPages } from "./lib/notion";
 
 const args = process.argv.slice(2);
@@ -35,7 +36,8 @@ for (const page of await queryAllPages()) {
   const id = String(page.id);
   const title = plain(page.properties["제목"]?.title);
   const original = await readOriginalBody(id);
-  const blocks = toBlocks(structureBody(original.text));
+  // 예전 관련 파일 컬럼 값도 본문 관련 파일 섹션으로 옮긴다 (컬럼을 지운 뒤에는 빈 값)
+  const blocks = toBlocks(structureWithFilesColumn(original.text, plain(page.properties[FILES_COLUMN]?.rich_text)));
   const after = blocksToText(blocks);
 
   let mark = "변경";
