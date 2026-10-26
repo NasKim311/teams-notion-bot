@@ -17,7 +17,7 @@
 | 레드마인 링크 | url | 봇 (`#11661`, 같은 호스트의 `https://…/issues/11661#note-3` → `REDMINE_ISSUE_URL` + 번호). 사람이 직접 넣을 때는 어떤 모양이든 일감 번호로 찾는다. 이슈 공유로 먼저 등록한 페이지는 일감을 만들 때 사람이 직접 넣는다 (결과 공유 연결용, [decisions.md](decisions.md)) |
 | MR 링크 | url | 봇 (`merge_requests/N`) |
 | ✏️ 브랜치 명 | rich_text | 봇 (`feature/…` 등, 쉼표로 구분) |
-| 관련 파일 | rich_text | 봇 (`경로:75`, 최대 10개) |
+| 관련 파일 | rich_text | 봇이 쓰지 않음 (2026-10-26부터 본문의 📂 관련 파일 섹션에만. `PROP`에 없음) |
 | ✏️ 영역 | multi_select | 봇 (`views/<모듈>/`, `/<모듈>/… 페이지`, `fit/fitXxx`) |
 | FO/BO | select | 봇 (본문에서 추정) |
 | ✏️ 상태 | status | 업데이트로 추가할 때만 봇이 바꿈. 새 등록 시에는 Notion 기본값 |

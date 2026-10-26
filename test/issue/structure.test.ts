@@ -4,13 +4,14 @@ import { toBlocks } from "../../src/notion/blocks";
 
 const body = (...rows: string[]) => rows.join("\n");
 
-/** 기대 결과: 여섯 섹션 제목은 항상 있고, 내용은 있는 것만 */
+/** 기대 결과: 일곱 섹션 제목은 항상 있고, 내용은 있는 것만 */
 function frame(content: {
   symptom?: string;
   testUrl?: string;
   expected?: string;
   cause?: string;
   fix?: string;
+  files?: string;
   note?: string;
 }): string {
   const sections: [string, string | undefined][] = [
@@ -19,6 +20,7 @@ function frame(content: {
     ["🔍 원인", content.cause],
     ["🛠 처리·해결", content.fix],
     ["🎯 기대 동작", content.expected],
+    ["📂 관련 파일", content.files],
     ["📎 참고(이미지 등 참고할만한 자료)", content.note],
   ];
   return sections.map(([title, text]) => (text ? `[ ${title} ]\n${text}` : `[ ${title} ]`)).join("\n\n");
@@ -50,6 +52,7 @@ describe("structureBody", () => {
     expect(blocks.map((b) => b.type)).toEqual([
       "heading_3",
       "paragraph",
+      "heading_3",
       "heading_3",
       "heading_3",
       "heading_3",
@@ -149,7 +152,7 @@ describe("structureBody", () => {
     expect(structureBody(once)).toBe(once);
   });
 
-  it("팀 공유 양식: 관련 파일 줄은 컬럼에 있으므로 본문에서 빼고, 콜론 없는 제목도 섹션으로", () => {
+  it("팀 공유 양식: 관련 파일은 관련 파일 섹션으로, 콜론 없는 제목도 섹션으로", () => {
     const result = structureBody(
       body(
         "🐞 현상 : 총 개수가 다르게 표시됨",
@@ -169,9 +172,11 @@ describe("structureBody", () => {
         testUrl: "https://dev-m.example.com/fit/fits",
         cause: "length 사용",
         expected: "total로 표시",
+        files: "src/views/fit/FitPage.tsx:75\nsrc/views/fit/FitList.tsx 120번째 줄",
         note: "첨부 이미지",
       }),
     );
+    expect(structureBody(result)).toBe(result);
   });
 
   it.each([
@@ -188,9 +193,16 @@ describe("structureBody", () => {
     expect(structureBody(result)).toBe(result);
   });
 
-  it("관련 파일 아래 파일이 아닌 설명은 참고로", () => {
-    const result = structureBody(body("현상 : 깨짐", "📂 관련 파일 :", "src/a/B.tsx:75", "공통 컴포넌트도 확인 필요"));
-    expect(result).toBe(frame({ symptom: "깨짐", note: "▸ 📂 관련 파일\n공통 컴포넌트도 확인 필요" }));
+  it("관련 파일 아래 설명도 관련 파일 섹션에 그대로", () => {
+    const result = structureBody(
+      body("현상 : 깨짐", "📂 관련 파일 :", "- src/a/B.tsx:75", "공통 컴포넌트도 확인 필요"),
+    );
+    expect(result).toBe(frame({ symptom: "깨짐", files: "- src/a/B.tsx:75\n공통 컴포넌트도 확인 필요" }));
+  });
+
+  it("브랜치 라벨 아래 설명은 전처럼 참고로", () => {
+    const result = structureBody(body("현상 : 깨짐", "브랜치명 :", "feature/a-#11661", "dev 미머지"));
+    expect(result).toBe(frame({ symptom: "깨짐", note: "▸ 브랜치명\ndev 미머지" }));
   });
 
   it("새 참고 제목은 Notion 소제목이 된다", () => {

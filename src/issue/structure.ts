@@ -1,15 +1,14 @@
-import { isFileOnlyLine } from "./extract";
 import { labelKey, matchSectionLabel } from "./sections";
 import { isHeaderLine, normalizeText } from "./text";
 
-// 새 이슈 본문을 고정 틀로 정리한다: 현상 → 테스트 URL → 원인 → 처리·해결 → 기대 동작 → 참고 (내용이 없어도 제목은 모두 넣음).
+// 새 이슈 본문을 고정 틀로 정리한다: 현상 → 테스트 URL → 원인 → 처리·해결 → 기대 동작 → 관련 파일 → 참고 (내용이 없어도 제목은 모두 넣음).
 //  - 팀 양식 라벨을 표준 섹션으로 모은다. 섹션 제목이 아닌 줄(다른 라벨 포함)은 쓴 자리의 섹션에 둔다
 //  - 첫 메시지에서 라벨 없이 쓴 글은 현상으로
 //  - Teams 머리글(작성자·시간)과 이후 답글의 라벨 없는 글(대화)은 넣지 않는다. 답글 속 라벨 글은 해당 섹션으로
-//  - 브랜치·MR·레드마인 링크만 있는 줄, 관련 파일 라벨 아래 파일 경로만 있는 줄은 컬럼에 있으므로 뺀다
+//  - 브랜치·MR·레드마인 링크만 있는 줄은 컬럼에 있으므로 뺀다 (관련 파일은 컬럼에 쓰지 않고 본문 섹션에만 둔다)
 // 결과는 "[ 🐞 현상 ]" 같은 대괄호 라벨 텍스트라 blocks.ts가 소제목으로 바꾼다.
 
-type SectionId = "symptom" | "testUrl" | "expected" | "cause" | "fix" | "note";
+type SectionId = "symptom" | "testUrl" | "expected" | "cause" | "fix" | "files" | "note";
 /** dev: 브랜치/MR 라벨 아래, skip: 답글의 라벨 없는 대화 */
 type Target = SectionId | "dev" | "skip";
 
@@ -19,10 +18,11 @@ export const SECTION_TITLES: Record<SectionId, string> = {
   expected: "🎯 기대 동작",
   cause: "🔍 원인",
   fix: "🛠 처리·해결",
+  files: "📂 관련 파일",
   // 스크린샷이 본문 뒤(참고 아래)에 붙으므로 제목에 이미지를 함께 적는다
   note: "📎 참고(이미지 등 참고할만한 자료)",
 };
-const ORDER: SectionId[] = ["symptom", "testUrl", "cause", "fix", "expected", "note"];
+const ORDER: SectionId[] = ["symptom", "testUrl", "cause", "fix", "expected", "files", "note"];
 
 const keyMap = (entries: [SectionId, string[]][]) =>
   new Map(entries.flatMap(([id, labels]) => labels.map((label) => [labelKey(label), id] as const)));
@@ -34,10 +34,11 @@ const MAIN_LABELS = keyMap([
   ["cause", ["원인", "이슈 원인", "이슈 발생 원인"]],
   ["fix", ["해결", "해결 방법", "이슈 해결", "처리 상황", "개선", "처리·해결"]],
   ["expected", ["기대 동작"]],
+  ["files", ["관련 파일"]],
   ["note", ["참고", SECTION_TITLES.note]],
 ]);
-/** 값이 컬럼(브랜치 명·MR 링크·관련 파일)에 들어가는 라벨 */
-const DEV_LABELS = new Set(["브랜치명", "작업 브랜치명", "Merge Request", "관련 파일"].map(labelKey));
+/** 값이 컬럼(브랜치 명·MR 링크)에 들어가는 라벨 */
+const DEV_LABELS = new Set(["브랜치명", "작업 브랜치명", "Merge Request"].map(labelKey));
 /** 줄 전체가 브랜치명 또는 MR/레드마인 링크뿐인 줄 */
 const LONE_DEV_LINE =
   /^(?:(?:feature|bugfix|hotfix|release|fix|refactor)\/[\w.\-#/]+|https?:\/\/\S*(?:\/merge_requests\/\d+|redmine\S*\/issues\/\d+)\S*?)[.,]?$/i;
@@ -49,6 +50,7 @@ export function structureBody(body: string): string {
     expected: [],
     cause: [],
     fix: [],
+    files: [],
     note: [],
   };
   let target: Target = "symptom";
@@ -61,7 +63,6 @@ export function structureBody(body: string): string {
 
   function handleText(line: string) {
     if (LONE_DEV_LINE.test(line.trim())) return;
-    if (target === "dev" && isFileOnlyLine(line)) return;
     if (target === "dev") {
       // 브랜치/MR 라벨 아래의 다른 설명은 참고로 옮긴다
       sections.note.push("", `▸ ${devLabel}`);
@@ -96,7 +97,7 @@ export function structureBody(body: string): string {
           target = main;
         } else {
           // 섹션 제목이 아닌 라벨("재현 방법", "[표시되는 내용]", "우려")은 쓴 자리의 섹션 안에 "▸ 라벨"로 둔다.
-          // 브랜치·관련 파일 아래(본문에 없는 섹션)나 답글이면 둘 섹션이 없으므로 참고로.
+          // 브랜치·MR 아래(본문에 없는 섹션)나 답글이면 둘 섹션이 없으므로 참고로.
           if (target === "dev" || target === "skip") target = "note";
           sections[target].push("", `▸ ${section.label}`);
         }

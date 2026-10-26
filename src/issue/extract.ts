@@ -1,4 +1,4 @@
-// 본문에서 개발 정보를 뽑는다: 일감(Redmine), MR, 브랜치, 관련 파일(+줄 번호), 영역(모듈), FO/BO.
+// 본문에서 개발 정보를 뽑는다: 일감(Redmine), MR, 브랜치, 영역(모듈, 관련 파일 경로에서도), FO/BO.
 
 import type { Platform } from "../types";
 
@@ -6,7 +6,6 @@ export interface DevInfo {
   workItemUrl: string | null;
   mrUrl: string | null;
   branch: string;
-  files: string;
   areas: string[];
   platform: Platform | null;
 }
@@ -26,11 +25,6 @@ const LINE_REF = /^\s*(?:의\s*)?(\d+)\s*(?:[~-]\s*(\d+))?\s*(?:번째\s*)?줄/;
 const LINE_REF_ONLY = /^\s*(\d+)\s*(?:[~-]\s*(\d+))?\s*(?:번째\s*)?줄\s*$/;
 /** 경로에 붙은 줄 번호: "Page.tsx:75", "List.tsx:103-119" */
 const COLON_LINE_REF = /^:(\d+)(?:\s*[~-]\s*(\d+))?(?!\d)/;
-/** 파일 경로 + (있으면) 줄 번호 한 덩어리 */
-const FILE_WITH_LINE = new RegExp(
-  String.raw`${FILE_PATH.source}(?::\d+(?:\s*[~-]\s*\d+)?|\s*(?:의\s*)?\d+\s*(?:[~-]\s*\d+)?\s*(?:번째\s*)?줄)?`,
-  "g",
-);
 /** 예시 괄호: "경로:줄 번호 (예: src/views/fit/FitPage.tsx:75)", "(예시: a/B.tsx)" — 안의 경로는 실제 파일이 아님 (B5) */
 const EXAMPLE_NOTE = /\(\s*예(?:시)?\s*[:：)][^()]*\)/g;
 const VIEW_MODULE = /(?:^|\/)views?\/([a-z][\w-]{1,20})(?:\/|$)/i;
@@ -67,12 +61,6 @@ export function extractFiles(text: string): string[] {
     }
   });
   return [...seen.values()].slice(0, MAX_FILES);
-}
-
-/** 줄이 파일 경로(+줄 번호)만으로 되어 있는지: "src/a/B.tsx:75", "a.ts 75번째 줄, b.ts" */
-export function isFileOnlyLine(line: string): boolean {
-  const rest = line.replace(FILE_WITH_LINE, "");
-  return rest !== line && /^[\s,.]*$/.test(rest);
 }
 
 export function extractAreas(text: string, files: string[]): string[] {
@@ -152,15 +140,13 @@ export function extractPlatform(text: string): Platform | null {
 }
 
 export function extractDevInfo(text: string, redmineIssueUrl?: string): DevInfo {
-  const files = extractFiles(text);
   const branches = [...new Set([...text.replace(URL_PATTERN, " ").matchAll(BRANCH)].map((m) => trimPunctuation(m[0])))];
 
   return {
     workItemUrl: extractWorkItem(text, redmineIssueUrl),
     mrUrl: text.match(MR_URL)?.[0] ?? null,
     branch: branches.join(", "),
-    files: files.join(", "),
-    areas: extractAreas(text, files),
+    areas: extractAreas(text, extractFiles(text)),
     platform: extractPlatform(text),
   };
 }

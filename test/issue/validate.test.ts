@@ -10,7 +10,6 @@ const valid = {
   workItemUrl: "http://redmine.example.com/issues/1",
   mrUrl: "http://gitlab.example.com/a/-/merge_requests/2",
   branch: "feature/x",
-  files: "src/A.tsx:1",
   areas: ["fit"],
 };
 
@@ -31,12 +30,11 @@ describe("validateIssue", () => {
         workItemUrl: "",
         mrUrl: null,
         branch: undefined,
-        files: "",
         areas: undefined,
       }),
     ).toMatchObject({
       ok: true,
-      value: { platform: null, author: "알 수 없음", workItemUrl: null, mrUrl: null, branch: "", files: "", areas: [] },
+      value: { platform: null, author: "알 수 없음", workItemUrl: null, mrUrl: null, branch: "", areas: [] },
     });
   });
 

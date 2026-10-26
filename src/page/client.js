@@ -3,7 +3,7 @@
 (() => {
   const KEY = "issueFormPassword";
   const $ = (id) => document.getElementById(id);
-  const fields = ["title", "type", "author", "platform", "workItemUrl", "mrUrl", "branch", "files", "areas", "body"];
+  const fields = ["title", "type", "author", "platform", "workItemUrl", "mrUrl", "branch", "areas", "body"];
   let cards = [];
   let busy = false;
   let fingerprints = []; // 이번 미리보기 메시지들의 지문 (등록이 모두 끝나면 기록)

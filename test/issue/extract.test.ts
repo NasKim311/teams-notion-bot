@@ -163,7 +163,6 @@ describe("extractDevInfo", () => {
       workItemUrl: `${REDMINE}11660`,
       mrUrl: "http://gitlab.example.com/app/FE/-/merge_requests/12101",
       branch: "feature/uzen-search-#11660, feature/multilingual_fe_ref_path",
-      files: "src/views/srch/pages/Result.tsx",
       areas: ["srch"],
       platform: null,
     });
@@ -174,7 +173,6 @@ describe("extractDevInfo", () => {
       workItemUrl: null,
       mrUrl: null,
       branch: "",
-      files: "",
       areas: [],
       platform: null,
     });

@@ -82,8 +82,6 @@ export function validateIssue(input: unknown): ValidationResult<Issue> {
 
   const branch = optionalText(data.branch);
   if (branch === undefined) return fail("브랜치 명이 너무 깁니다.");
-  const files = optionalText(data.files);
-  if (files === undefined) return fail("관련 파일이 너무 깁니다.");
   const areas = normalizeAreas(data.areas);
   if (areas === undefined) return fail(`영역은 ${AREAS_MAX}개 이하, 각 ${AREA_MAX}자 이하로 입력해주세요.`);
 
@@ -101,7 +99,6 @@ export function validateIssue(input: unknown): ValidationResult<Issue> {
       workItemUrl,
       mrUrl,
       branch,
-      files,
       areas,
     },
   };

@@ -155,7 +155,6 @@ describe("POST /api/preview", () => {
           workItemUrl: "http://redmine.example.com/issues/11660", // REDMINE_ISSUE_URL + 번호
           mrUrl: null,
           branch: "feature/fix-#11660",
-          files: "",
           areas: [],
         },
       ],

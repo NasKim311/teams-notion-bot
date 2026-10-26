@@ -34,8 +34,6 @@ export interface Issue {
   mrUrl: string | null;
   /** 브랜치 (쉼표로 구분) */
   branch: string;
-  /** 관련 파일 (쉼표로 구분, "경로:줄") */
-  files: string;
   /** 영역 (모듈) */
   areas: string[];
 }

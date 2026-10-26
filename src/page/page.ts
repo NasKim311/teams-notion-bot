@@ -150,10 +150,7 @@ ${styles}
           <label>레드마인 링크<input data-field="workItemUrl" type="url" placeholder="Redmine 일감 링크"></label>
           <label>MR 링크<input data-field="mrUrl" type="url" placeholder="GitLab MR 링크"></label>
         </div>
-        <div class="grid g2">
-          <label>브랜치 명<input data-field="branch" maxlength="2000"></label>
-          <label>관련 파일<input data-field="files" maxlength="2000" placeholder="쉼표로 구분 (예: src/views/fit/pages/FitDetail.tsx:75)"></label>
-        </div>
+        <label>브랜치 명<input data-field="branch" maxlength="2000"></label>
         <label>본문<textarea data-field="body" rows="8"></textarea></label>
         <div class="images">
           <div class="thumbs" data-role="thumbs"></div>

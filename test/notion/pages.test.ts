@@ -19,7 +19,6 @@ const issue: Issue = {
   workItemUrl: null,
   mrUrl: null,
   branch: "",
-  files: "",
   areas: [],
 };
 
@@ -42,7 +41,6 @@ describe("buildPageRequest", () => {
         "레드마인 링크": { url: null },
         "MR 링크": { url: null },
         "✏️ 브랜치 명": { rich_text: [] },
-        "관련 파일": { rich_text: [] },
         "✏️ 영역": { multi_select: [] },
         "FO/BO": { select: null },
       },
@@ -58,6 +56,7 @@ describe("buildPageRequest", () => {
         heading("🔍 원인"),
         heading("🛠 처리·해결"),
         heading("🎯 기대 동작"),
+        heading("📂 관련 파일"),
         heading("📎 참고(이미지 등 참고할만한 자료)"),
       ],
     });
@@ -70,17 +69,16 @@ describe("buildPageRequest", () => {
         workItemUrl: "http://redmine.example.com/issues/1",
         mrUrl: "http://gitlab.example.com/a/-/merge_requests/2",
         branch: "feature/x",
-        files: "src/A.tsx:1, src/B.tsx",
         areas: ["fit", "evt"],
         platform: "BO",
       },
       "db",
     ).properties;
+    expect(props).not.toHaveProperty("관련 파일"); // 관련 파일은 본문에만 둔다
     expect(props).toMatchObject({
       "레드마인 링크": { url: "http://redmine.example.com/issues/1" },
       "MR 링크": { url: "http://gitlab.example.com/a/-/merge_requests/2" },
       "✏️ 브랜치 명": { rich_text: [{ text: { content: "feature/x" } }] },
-      "관련 파일": { rich_text: [{ text: { content: "src/A.tsx:1, src/B.tsx" } }] },
       "✏️ 영역": { multi_select: [{ name: "fit" }, { name: "evt" }] },
       "FO/BO": { select: { name: "BO" } },
     });
@@ -115,12 +113,12 @@ describe("createNotionPage", () => {
 
     await createNotionPage({ ...issue, body }, env, fetchMock);
 
-    expect(fetchMock).toHaveBeenCalledTimes(3); // 생성(소제목 1 + 문단 99) + 100 + 36(문단 31 + 빈 섹션 제목 5)
+    expect(fetchMock).toHaveBeenCalledTimes(3); // 생성(소제목 1 + 문단 99) + 100 + 37(문단 31 + 빈 섹션 제목 6)
     const [url, init] = fetchMock.mock.calls[1]!;
     expect(url).toBe("https://api.notion.com/v1/blocks/page-1/children");
     expect(init?.method).toBe("PATCH");
     expect(JSON.parse(init?.body as string).children).toHaveLength(100);
-    expect(JSON.parse(fetchMock.mock.calls[2]![1]?.body as string).children).toHaveLength(36);
+    expect(JSON.parse(fetchMock.mock.calls[2]![1]?.body as string).children).toHaveLength(37);
   });
 
   it("오류 응답이면 status/code를 담은 NotionError (토큰 미포함)", async () => {
@@ -264,7 +262,6 @@ describe("기존 이슈 찾기/업데이트", () => {
         workItemUrl: "http://r/issues/9",
         mrUrl: "http://gitlab.example.com/a/-/merge_requests/2",
         branch: "feature/a, feature/b",
-        files: "src/A.tsx:1",
         areas: ["fit", "evt"],
         platform: "FO",
       },
@@ -275,7 +272,6 @@ describe("기존 이슈 찾기/업데이트", () => {
       "레드마인 링크": { url: "http://r/issues/9" },
       "FO/BO": { select: { name: "FO" } },
       "✏️ 브랜치 명": { rich_text: [{ type: "text", text: { content: "feature/a, feature/b" } }] },
-      "관련 파일": { rich_text: [{ type: "text", text: { content: "src/A.tsx:1" } }] },
       "✏️ 영역": { multi_select: [{ name: "fit" }, { name: "evt" }] },
     });
   });

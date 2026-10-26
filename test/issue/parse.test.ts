@@ -28,7 +28,6 @@ describe("parsePastedText — 추천 양식", () => {
       workItemUrl: null,
       mrUrl: null,
       branch: "",
-      files: "",
       areas: [],
     });
   });
@@ -140,7 +139,6 @@ describe("parsePastedText — Teams 복사 형식", () => {
       workItemUrl: null,
       mrUrl: null,
       branch: "",
-      files: "",
       areas: [],
     });
   });
@@ -150,7 +148,6 @@ describe("parsePastedText — Teams 복사 형식", () => {
       "이슈 사항 : src/views/fit/pages/A.tsx 75번째 줄\n문제 설명\n처리 상황 : 일감번호 8795 처리 중 삽입된 코드";
     expect(parsePastedText(text, { redmineIssueUrl: "http://redmine.example.com/issues" })).toMatchObject({
       workItemUrl: "http://redmine.example.com/issues/8795",
-      files: "src/views/fit/pages/A.tsx:75",
       areas: ["fit"],
     });
     expect(parsePastedText(text).workItemUrl).toBeNull();
@@ -203,7 +200,7 @@ describe("splitIssueLines / parseIssues", () => {
     it("메시지마다 이슈로 나누고 작성자는 각 메시지의 머리글에서", () => {
       const { issues } = parseIssues(text);
       expect(issues.map((i) => i.author)).toEqual(["김개발", "박개발"]);
-      expect(issues.map((i) => i.files)).toEqual(["src/views/cpn/CouponDetail.tsx:75", ""]);
+      expect(issues.map((i) => i.areas)).toEqual([["cpn"], []]);
     });
 
     it("각 이슈 본문에는 자기 머리글만 들어간다 (다음 사람 머리글이 앞 이슈 끝에 붙지 않음)", () => {
@@ -303,9 +300,8 @@ describe("회귀 B5: 팀 공지 양식의 예시 문구를 지우지 않고 올�
     "📎 참고 : 이미지 등 참고할 만한 자료",
   ].join("\n");
 
-  it("예시 경로를 관련 파일·영역·제목에 쓰지 않는다", () => {
+  it("예시 경로를 영역·제목에 쓰지 않는다", () => {
     const issue = parsePastedText(raw);
-    expect(issue.files).toBe("");
     expect(issue.areas).toEqual([]);
     expect(issue.title).toBe("상품 상세에서 옵션 선택 시 가격이 0원으로 표시됨");
   });

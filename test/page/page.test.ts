@@ -26,7 +26,6 @@ describe("TEMPLATE", () => {
 
   it("양식을 그대로 등록해도 예시 값이 컬럼에 들어가지 않는다", () => {
     const issue = parsePastedText(TEMPLATE);
-    expect(issue.files).toBe("");
     expect(issue.areas).toEqual([]);
     expect(issue.author).toBe("홍길동");
   });
